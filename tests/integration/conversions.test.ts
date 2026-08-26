@@ -67,7 +67,7 @@ describe('conversions', () => {
     await prisma.$disconnect();
   });
 
-  it('REQUIRED TEST 5 — a conversion is recorded and the payout calculated', async () => {
+  it('a conversion is recorded and the payout calculated', async () => {
     const { brand } = await createBrand();
     const { creator } = await createCreator();
     // $40 CPA to the publisher.
@@ -106,7 +106,7 @@ describe('conversions', () => {
     expect((await verifyGlobalBalance()).balanced).toBe(true);
   });
 
-  it('REQUIRED TEST 10 — a duplicate conversion creates no second transaction', async () => {
+  it('a duplicate conversion creates no second transaction', async () => {
     const { brand } = await createBrand();
     const { creator } = await createCreator();
     const campaign = await createCampaign(brand.id, { payoutModel: 'CPL', payoutMicros: 15_000_000n });
@@ -298,7 +298,7 @@ describe('conversions', () => {
     expect((await verifyGlobalBalance()).balanced).toBe(true);
   });
 
-  it('REQUIRED TEST 8 — reversing a conversion unwinds every ledger entry', async () => {
+  it('reversing a conversion unwinds every ledger entry', async () => {
     const { brand } = await createBrand();
     const { creator } = await createCreator();
     const campaign = await createCampaign(brand.id, { payoutModel: 'CPA', payoutMicros: 10_000_000n });

@@ -65,7 +65,7 @@ describe('tracking', () => {
     await prisma.$disconnect();
   });
 
-  it('REQUIRED TEST 3 — a click redirects and is recorded', async () => {
+  it('a click redirects and is recorded, with no raw address retained', async () => {
     const { brand } = await createBrand();
     const { creator } = await createCreator();
     const campaign = await createCampaign(brand.id);
@@ -105,7 +105,7 @@ describe('tracking', () => {
     expect(JSON.stringify(recorded)).not.toContain('198.51.100.22');
   });
 
-  it('REQUIRED TEST 4 — a qualified click generates a publisher earning', async () => {
+  it('a qualified click generates a publisher earning', async () => {
     const { brand } = await createBrand();
     const { creator } = await createCreator();
     // $0.20 to the publisher, 20% platform default fee.
@@ -151,7 +151,7 @@ describe('tracking', () => {
     expect(second.outcome.kind).toBe('redirect');
   });
 
-  it('REQUIRED TEST 7 — automated traffic is flagged and not paid', async () => {
+  it('automated traffic is flagged and not paid', async () => {
     const { brand } = await createBrand();
     const { creator } = await createCreator();
     const campaign = await createCampaign(brand.id);
@@ -217,7 +217,7 @@ describe('tracking', () => {
     expect(await testDb.fraudEvent.count({ where: { clickId } })).toBe(0);
   });
 
-  it('REQUIRED TEST 6 — an exhausted budget stops billable activity', async () => {
+  it('an exhausted budget stops billable activity', async () => {
     const { brand } = await createBrand();
     const { creator } = await createCreator();
     const campaign = await createCampaign(brand.id, { payoutMicros: 200_000n });
@@ -245,7 +245,7 @@ describe('tracking', () => {
     expect(snapshot!.reservedMicros).toBeLessThanOrEqual(snapshot!.fundedMicros);
   });
 
-  it('REQUIRED TEST 12 — a suspended publisher cannot generate billable traffic', async () => {
+  it('a suspended publisher cannot generate billable traffic', async () => {
     const { brand } = await createBrand();
     const { creator } = await createCreator();
     const campaign = await createCampaign(brand.id);

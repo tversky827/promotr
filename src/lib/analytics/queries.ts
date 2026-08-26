@@ -352,7 +352,7 @@ export async function breakdown(
     SELECT
       COALESCE(${column}, 'Unknown') AS label,
       COUNT(*)::bigint AS clicks,
-      COUNT(*) FILTER (WHERE eligibility = 'ELIGIBLE')::bigint AS qualified
+      COUNT(*) FILTER (WHERE eligibility IN ('ELIGIBLE', 'REVIEW'))::bigint AS qualified
     FROM "clicks"
     WHERE ${where} AND "createdAt" >= $${params.length + 1} AND "createdAt" < $${params.length + 2}
     GROUP BY 1

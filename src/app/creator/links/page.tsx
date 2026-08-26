@@ -209,7 +209,7 @@ async function linkStats(linkIds: string[]) {
   >`
     SELECT "linkId" AS link_id,
            COUNT(*)::bigint AS clicks,
-           COUNT(*) FILTER (WHERE eligibility = 'ELIGIBLE')::bigint AS qualified
+           COUNT(*) FILTER (WHERE eligibility IN ('ELIGIBLE', 'REVIEW'))::bigint AS qualified
     FROM "clicks"
     WHERE "linkId" = ANY(${linkIds}::uuid[])
     GROUP BY 1

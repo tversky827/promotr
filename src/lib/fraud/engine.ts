@@ -231,7 +231,10 @@ async function countClicks(filter: ClickCountFilter): Promise<number> {
         ...(filter.campaignId ? { campaignId: filter.campaignId } : {}),
         ...(filter.sessionFp ? { sessionFp: filter.sessionFp } : {}),
         ...(filter.ipPrefixHash ? { ipPrefixHash: filter.ipPrefixHash } : {}),
-        eligibility: 'ELIGIBLE',
+        // A click held for review was still billable, so it counts toward
+        // duplication — otherwise a publisher could evade the dedupe window by
+        // getting their first click flagged.
+        eligibility: { in: ['ELIGIBLE', 'REVIEW'] },
       },
     });
     return rows;
@@ -399,7 +402,7 @@ export async function recomputeCreatorRisk(creatorId: string): Promise<number> {
   >`
     SELECT
       COUNT(*)::bigint AS total,
-      COUNT(*) FILTER (WHERE eligibility <> 'ELIGIBLE')::bigint AS rejected,
+      COUNT(*) FILTER (WHERE eligibility NOT IN ('ELIGIBLE', 'REVIEW'))::bigint AS rejected,
       COUNT(*) FILTER (WHERE "fraudScore" >= 51)::bigint AS flagged
     FROM "clicks"
     WHERE "creatorId" = ${creatorId}::uuid AND "createdAt" >= ${since}

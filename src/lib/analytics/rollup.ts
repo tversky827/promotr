@@ -43,7 +43,10 @@ export async function rollupHour(bucket: Date): Promise<number> {
     FROM (
       SELECT "campaignId" AS campaign_id, "creatorId" AS creator_id,
              COUNT(*)::int AS clicks,
-             COUNT(*) FILTER (WHERE eligibility = 'ELIGIBLE')::int AS qualified,
+             -- A click held for review counts as qualified: the campaign's
+             -- budget is reserved against it, so excluding it would show a
+             -- brand fewer billable clicks than they are actually paying for.
+             COUNT(*) FILTER (WHERE eligibility IN ('ELIGIBLE', 'REVIEW'))::int AS qualified,
              COUNT(DISTINCT "sessionFp")::int AS uniques
       FROM "clicks"
       WHERE "createdAt" >= ${start} AND "createdAt" < ${end}

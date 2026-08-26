@@ -13,6 +13,7 @@ import { prisma, withSerializableTransaction } from '@/lib/db';
 import { enqueue } from '@/lib/jobs/queue';
 import { logger } from '@/lib/observability/logger';
 import { parseAmount, tryParseAmount } from '@/lib/money';
+import { launchDecision } from '@/lib/campaigns/lifecycle';
 import { getSettings } from '@/lib/settings';
 import { dispatch } from '@/lib/webhooks/outbound';
 import { validateDestinationUrl } from '@/lib/urlsafety';
@@ -462,34 +463,15 @@ export const launchCampaign = action(launchSchema, async (input, context) => {
   });
   if (!campaign) return actionError('That campaign was not found.');
 
-  if (campaign.status === 'ACTIVE') return actionOk(undefined, 'This campaign is already live.');
-  if (campaign.status !== 'APPROVED' && campaign.status !== 'PAUSED') {
-    return actionError(
-      campaign.status === 'PENDING_REVIEW'
-        ? 'This campaign is still in review.'
-        : campaign.status === 'REJECTED'
-          ? 'This campaign was not approved. Edit it and resubmit.'
-          : 'Submit the campaign for review before launching it.',
-    );
-  }
+  const decision = launchDecision({
+    campaign,
+    budget: campaign.budget,
+    brandVerification: brand.verification,
+    brandVerificationRequired: settings.brandVerificationRequiredToLaunch,
+  });
 
-  if (settings.brandVerificationRequiredToLaunch && brand.verification !== 'VERIFIED') {
-    return actionError(
-      'Your business needs to be verified before campaigns can go live. We will email you when it is done.',
-      undefined,
-      'BRAND_UNVERIFIED',
-    );
-  }
-
-  // The core solvency rule: no live campaign without money behind it.
-  const available = campaign.budget ? budget.availableMicros(campaign.budget) : 0n;
-  if (available <= 0n) {
-    return actionError(
-      'Fund the campaign before launching it. Publishers must never accrue earnings that cannot be paid.',
-      undefined,
-      'UNFUNDED',
-    );
-  }
+  if (decision.ok === 'already-live') return actionOk(undefined, 'This campaign is already live.');
+  if (!decision.ok) return actionError(decision.reason, undefined, decision.code);
 
   await prisma.campaign.update({
     where: { id: campaign.id },
@@ -508,7 +490,7 @@ export const launchCampaign = action(launchSchema, async (input, context) => {
     action: 'campaign.launched',
     entityKind: 'campaign',
     entityId: campaign.id,
-    metadata: { availableMicros: available.toString() },
+    metadata: { availableMicros: decision.availableMicros.toString() },
   });
 
   logger.info('campaign.launched', { campaignId: campaign.id, brandId: brand.id });

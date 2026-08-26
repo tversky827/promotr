@@ -52,7 +52,7 @@ export default async function AdminCreatorPage({ params }: { params: Promise<{ i
     prisma.$queryRaw<Array<{ total: bigint; qualified: bigint; rejected: bigint }>>`
       SELECT
         COUNT(*)::bigint AS total,
-        COUNT(*) FILTER (WHERE eligibility = 'ELIGIBLE')::bigint AS qualified,
+        COUNT(*) FILTER (WHERE eligibility IN ('ELIGIBLE', 'REVIEW'))::bigint AS qualified,
         COUNT(*) FILTER (WHERE eligibility = 'REJECTED')::bigint AS rejected
       FROM "clicks" WHERE "creatorId" = ${creator.id}::uuid
     `,

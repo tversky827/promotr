@@ -267,7 +267,11 @@ export async function recordClick(params: RecordClickParams): Promise<void> {
       fraudSignals = assessment.signals.map((s) => s.code);
 
       const decision = await decide(assessment);
-      eligibility = eligibilityFor(assessment.disqualificationCode, decision.billable);
+      eligibility = eligibilityFor(
+        assessment.disqualificationCode,
+        decision.billable,
+        decision.hold,
+      );
 
       // Only CPC campaigns pay per click. Other models pay on conversion.
       if (decision.billable && link.payoutModel === 'CPC') {
@@ -393,6 +397,7 @@ async function accrueClickEarning(
 function eligibilityFor(
   disqualification: string | null,
   billable: boolean,
+  held: boolean,
 ): ClickEligibility {
   switch (disqualification) {
     case 'GEO_NOT_ALLOWED':
@@ -402,6 +407,10 @@ function eligibilityFor(
     case 'DUPLICATE_CLICK':
       return 'DUPLICATE';
     default:
-      return billable ? 'ELIGIBLE' : 'REJECTED';
+      // A held click is billable — the brand's budget is reserved against it —
+      // but it is not the same as one that passed cleanly, and an operator
+      // filtering the click log needs to be able to tell them apart.
+      if (!billable) return 'REJECTED';
+      return held ? 'REVIEW' : 'ELIGIBLE';
   }
 }
