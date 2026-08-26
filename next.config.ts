@@ -39,6 +39,17 @@ const config: NextConfig = {
         ],
       },
       {
+        // Redirect responses must not leak our URL — which contains the
+        // publisher's tracking code — to the advertiser. This rule is listed
+        // after the global one so it overrides the site-wide Referrer-Policy.
+        source: '/go/:code*',
+        headers: [
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, private' },
+        ],
+      },
+      {
         // The embeddable tracking SDK must be loadable cross-origin by brands.
         source: '/sdk/:path*',
         headers: [
