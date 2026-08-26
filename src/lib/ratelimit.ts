@@ -39,6 +39,9 @@ export const RATE_LIMITS = {
   payoutRequest: { limit: 10, windowSeconds: 3600 },
   export: { limit: 20, windowSeconds: 3600 },
   disputeCreate: { limit: 20, windowSeconds: 3600 },
+  // Each check is a live DNS lookup, so this is throttled per brand rather
+  // than left to a user hammering the button while waiting for propagation.
+  domainCheck: { limit: 30, windowSeconds: 3600 },
   mutation: { limit: 240, windowSeconds: 60 },
 } as const satisfies Record<string, RateLimitRule>;
 

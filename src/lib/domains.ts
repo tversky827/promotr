@@ -15,6 +15,25 @@ import { logger } from '@/lib/observability/logger';
 
 export const TXT_RECORD_PREFIX = 'promotr-domain-verification=';
 
+/** The DNS subdomain the TXT record is published at. */
+export const TXT_RECORD_HOST = '_promotr';
+
+/**
+ * The record a brand has to publish. Defined once so the settings screen, the
+ * verifier and the documentation can never drift apart — and deliberately not
+ * derived from configurable branding: renaming the product must not silently
+ * invalidate every DNS record customers have already published.
+ */
+export function verificationRecord(
+  domain: string,
+  token: string,
+): { recordName: string; recordValue: string } {
+  return {
+    recordName: `${TXT_RECORD_HOST}.${domain}`,
+    recordValue: `${TXT_RECORD_PREFIX}${token}`,
+  };
+}
+
 export async function requestVerification(params: {
   brandId: string;
   domain: string;
@@ -31,21 +50,17 @@ export async function requestVerification(params: {
     update: { token, verifiedAt: null },
   });
 
-  return {
-    domainId: record.id,
-    recordName: `_promotr.${normalized}`,
-    recordValue: `${TXT_RECORD_PREFIX}${token}`,
-  };
+  return { domainId: record.id, ...verificationRecord(normalized, token) };
 }
 
 export async function verifyDomain(domainId: string): Promise<{ verified: boolean; reason?: string }> {
   const record = await prisma.verifiedDomain.findUnique({ where: { id: domainId } });
   if (!record) return { verified: false, reason: 'Unknown domain' };
 
-  const expected = `${TXT_RECORD_PREFIX}${record.token}`;
+  const { recordName, recordValue: expected } = verificationRecord(record.domain, record.token);
 
   try {
-    const results = await resolveTxt(`_promotr.${record.domain}`);
+    const results = await resolveTxt(recordName);
     const values = results.map((chunks) => chunks.join(''));
     const found = values.some((v) => v.trim() === expected);
 
@@ -60,7 +75,7 @@ export async function verifyDomain(domainId: string): Promise<{ verified: boolea
     }
     return {
       verified: false,
-      reason: `No matching TXT record found at _promotr.${record.domain}. DNS changes can take up to an hour to propagate.`,
+      reason: `No matching TXT record found at ${recordName}. DNS changes can take up to an hour to propagate.`,
     };
   } catch (error) {
     const code = (error as { code?: string }).code;
@@ -72,7 +87,7 @@ export async function verifyDomain(domainId: string): Promise<{ verified: boolea
       verified: false,
       reason:
         code === 'ENOTFOUND' || code === 'ENODATA'
-          ? `No TXT record exists at _promotr.${record.domain} yet.`
+          ? `No TXT record exists at ${recordName} yet.`
           : `DNS lookup failed: ${(error as Error).message}`,
     };
   }
