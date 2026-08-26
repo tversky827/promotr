@@ -1,0 +1,1272 @@
+// Promotr — performance creator marketplace
+// All monetary values are integer MICROS (1 unit = 1/1,000,000 of a currency unit).
+// $10.25 == 10_250_000 micros. See src/lib/money.ts and docs/DATABASE.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  BRAND_OWNER
+  BRAND_MEMBER
+  CREATOR
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_DELETION
+  DELETED
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+  RESTRICTED
+  SUSPENDED
+}
+
+enum TokenPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  MAGIC_LINK
+  EMAIL_CHANGE
+}
+
+enum CampaignStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  REJECTED
+  SUSPENDED
+}
+
+enum PayoutModel {
+  CPC
+  CPL
+  CPA
+  CPM
+  REVSHARE
+  HYBRID
+}
+
+enum BillableEvent {
+  CLICK
+  IMPRESSION
+  LEAD
+  SALE
+  CUSTOM
+}
+
+enum ChannelType {
+  TIKTOK
+  INSTAGRAM
+  YOUTUBE
+  X
+  FACEBOOK
+  LINKEDIN
+  REDDIT
+  PINTEREST
+  SNAPCHAT
+  TWITCH
+  WEBSITE
+  BLOG
+  NEWSLETTER
+  PODCAST
+  COMMUNITY
+  APP
+  PAID_SEARCH
+  PAID_SOCIAL
+  DISPLAY
+  NATIVE_ADS
+  SMS
+  EMAIL_LIST
+  OTHER
+}
+
+enum ClickEligibility {
+  ELIGIBLE
+  DUPLICATE
+  REVIEW
+  REJECTED
+  BUDGET_EXHAUSTED
+  CAMPAIGN_INACTIVE
+  GEO_BLOCKED
+  CHANNEL_BLOCKED
+  SUSPENDED_PUBLISHER
+}
+
+enum EarningStatus {
+  PENDING
+  APPROVED
+  AVAILABLE
+  REJECTED
+  UNDER_REVIEW
+  REVERSED
+  PAID
+}
+
+enum ConversionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  UNDER_REVIEW
+  REVERSED
+  DUPLICATE
+}
+
+enum LedgerAccountType {
+  BRAND_DEPOSIT        // liability: funds a brand has deposited but not spent
+  CAMPAIGN_ESCROW      // liability: funds reserved to a specific campaign
+  PUBLISHER_PENDING    // liability: earnings accrued, not yet approved
+  PUBLISHER_AVAILABLE  // liability: earnings a publisher may withdraw
+  PUBLISHER_PAID       // contra: cumulative amounts paid out
+  PLATFORM_REVENUE     // income: platform fees
+  PAYOUT_CLEARING      // asset-in-transit while Stripe settles a payout
+  EXTERNAL_SETTLEMENT  // the outside world (Stripe, card networks, banks)
+  ROUNDING             // sub-cent remainders at external boundaries
+}
+
+enum EntryDirection {
+  DEBIT
+  CREDIT
+}
+
+enum TransactionKind {
+  BRAND_DEPOSIT
+  CAMPAIGN_FUND
+  CAMPAIGN_DEFUND
+  EARNING_ACCRUAL
+  EARNING_APPROVAL
+  EARNING_REVERSAL
+  PLATFORM_FEE
+  PAYOUT_INITIATED
+  PAYOUT_SETTLED
+  PAYOUT_FAILED
+  REFUND
+  CHARGEBACK
+  MANUAL_ADJUSTMENT
+  FRAUD_HOLD
+  FRAUD_RELEASE
+}
+
+enum PayoutStatus {
+  REQUESTED
+  APPROVED
+  PROCESSING
+  PAID
+  FAILED
+  CANCELED
+  ON_HOLD
+}
+
+enum DisputeStatus {
+  OPEN
+  INVESTIGATING
+  AWAITING_INFORMATION
+  RESOLVED
+  REJECTED
+}
+
+enum DisputeKind {
+  FRAUDULENT_CLICKS
+  FRAUDULENT_CONVERSIONS
+  DUPLICATE_CONVERSION
+  INVALID_TRAFFIC
+  REJECTED_EARNING
+  PAYOUT_DECISION
+  OTHER
+}
+
+enum DisputeOpenedBy {
+  BRAND
+  PUBLISHER
+  ADMIN
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  DEAD
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum CreativeKind {
+  IMAGE
+  VIDEO
+  LOGO
+  COPY
+  HEADLINE
+  DESCRIPTION
+  CLAIM
+}
+
+enum CreativeUsage {
+  REQUIRED
+  APPROVED
+  OPTIONAL
+}
+
+enum TermsKind {
+  TERMS_OF_SERVICE
+  PRIVACY_POLICY
+  COOKIE_POLICY
+  CREATOR_AGREEMENT
+  BRAND_AGREEMENT
+  ACCEPTABLE_USE
+  CAMPAIGN_TERMS
+}
+
+enum FraudSignalSeverity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// ---------------------------------------------------------------------------
+// Identity & access
+// ---------------------------------------------------------------------------
+
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  email           String     @unique
+  emailNormalized String     @unique
+  passwordHash    String?
+  role            UserRole
+  status          UserStatus @default(ACTIVE)
+  name            String
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  failedLogins    Int        @default(0)
+  lockedUntil     DateTime?
+  mfaEnabled      Boolean    @default(false)
+  mfaSecret       String? // encrypted at rest (see src/lib/crypto/secretbox.ts)
+  mfaRecoveryHash String[]   @default([])
+  marketingOptIn  Boolean    @default(false)
+  suspendedReason String?
+  deletionRequest DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  sessions          Session[]
+  tokens            EmailToken[]
+  oauthAccounts     OAuthAccount[]
+  brandMemberships  BrandMember[]
+  creator           Creator?
+  notifications     Notification[]
+  auditLogs         AuditLog[]        @relation("AuditActor")
+  termsAcceptances  TermsAcceptance[]
+  disputeMessages   DisputeMessage[]
+  exports           ExportJob[]
+
+  @@index([status])
+  @@index([role])
+  @@map("users")
+}
+
+model Session {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  tokenHash      String    @unique
+  csrfSecretHash String
+  userAgent      String?
+  ipHash         String?
+  mfaSatisfied   Boolean   @default(false)
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  lastSeenAt     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model EmailToken {
+  id         String       @id @default(uuid()) @db.Uuid
+  userId     String       @db.Uuid
+  purpose    TokenPurpose
+  tokenHash  String       @unique
+  payload    Json?
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("email_tokens")
+}
+
+model OAuthAccount {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  provider       String
+  providerUserId String
+  email          String?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
+
+// ---------------------------------------------------------------------------
+// Brands
+// ---------------------------------------------------------------------------
+
+model Brand {
+  id                 String             @id @default(uuid()) @db.Uuid
+  slug               String             @unique
+  legalName          String
+  displayName        String
+  website            String
+  category           String
+  country            String // ISO 3166-1 alpha-2
+  contactEmail       String
+  contactPhone       String?
+  addressLine1       String?
+  addressLine2       String?
+  city               String?
+  region             String?
+  postalCode         String?
+  taxId              String? // encrypted at rest
+  logoUrl            String?
+  description        String?
+  verification       VerificationStatus @default(UNVERIFIED)
+  verificationNotes  String?
+  verifiedAt         DateTime?
+  stripeCustomerId   String?            @unique
+  defaultFeeBps      Int? // overrides platform default when set
+  autoRefillEnabled  Boolean            @default(false)
+  autoRefillThreshMicros BigInt?
+  autoRefillAmountMicros BigInt?
+  suspendedReason    String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  members       BrandMember[]
+  campaigns     Campaign[]
+  paymentMethods BrandPaymentMethod[]
+  deposits      BrandDeposit[]
+  webhooks      WebhookEndpoint[]
+  apiKeys       ApiKey[]
+  disputes      Dispute[]
+  invitations   CampaignInvitation[]
+  domains       VerifiedDomain[]
+
+  @@index([verification])
+  @@map("brands")
+}
+
+model BrandMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  brandId   String   @db.Uuid
+  userId    String   @db.Uuid
+  role      UserRole
+  createdAt DateTime @default(now())
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, userId])
+  @@index([userId])
+  @@map("brand_members")
+}
+
+model BrandPaymentMethod {
+  id                    String   @id @default(uuid()) @db.Uuid
+  brandId               String   @db.Uuid
+  stripePaymentMethodId String   @unique
+  brandLabel            String // e.g. "visa"
+  last4                 String
+  expMonth              Int
+  expYear               Int
+  isDefault             Boolean  @default(false)
+  createdAt             DateTime @default(now())
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId])
+  @@map("brand_payment_methods")
+}
+
+model BrandDeposit {
+  id                    String   @id @default(uuid()) @db.Uuid
+  brandId               String   @db.Uuid
+  amountMicros          BigInt
+  currency              String   @default("usd")
+  stripePaymentIntentId String?  @unique
+  status                String // requires_payment_method | processing | succeeded | failed | refunded
+  failureMessage        String?
+  refundedMicros        BigInt   @default(0)
+  campaignId            String?  @db.Uuid
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  brand    Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  campaign Campaign? @relation(fields: [campaignId], references: [id])
+
+  @@index([brandId, createdAt])
+  @@map("brand_deposits")
+}
+
+model VerifiedDomain {
+  id           String    @id @default(uuid()) @db.Uuid
+  brandId      String    @db.Uuid
+  domain       String
+  token        String
+  verifiedAt   DateTime?
+  lastCheckedAt DateTime?
+  createdAt    DateTime  @default(now())
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, domain])
+  @@map("verified_domains")
+}
+
+// ---------------------------------------------------------------------------
+// Creators / publishers
+// ---------------------------------------------------------------------------
+
+model Creator {
+  id                    String             @id @default(uuid()) @db.Uuid
+  userId                String             @unique @db.Uuid
+  handle                String             @unique
+  publisherType         String             @default("CREATOR") // CREATOR | WEBSITE | NEWSLETTER | COMMUNITY | APP | PODCAST | MEDIA_COMPANY
+  verification          VerificationStatus @default(UNVERIFIED)
+  verificationNotes     String?
+  country               String?
+  taxFormKind           String? // W9 | W8BEN | W8BENE
+  taxFormStatus         String? // pending | submitted | verified | rejected
+  taxFormSubmittedAt    DateTime?
+  stripeAccountId       String?            @unique
+  stripePayoutsEnabled  Boolean            @default(false)
+  stripeChargesEnabled  Boolean            @default(false)
+  stripeRequirementsDue String[]           @default([])
+  payoutHold            Boolean            @default(false)
+  payoutHoldReason      String?
+  riskScore             Int                @default(0)
+  suspendedReason       String?
+  tier                  String             @default("STANDARD") // STANDARD | PRO | PARTNER — drives fee overrides
+  feeBpsOverride        Int?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile       CreatorProfile?
+  socialAccounts SocialAccount[]
+  links         TrackingLink[]
+  earnings      Earning[]
+  payouts       Payout[]
+  applications  CampaignApplication[]
+  disputes      Dispute[]
+  fraudEvents   FraudEvent[]
+  invitations   CampaignInvitation[]
+
+  @@index([verification])
+  @@map("creators")
+}
+
+model CreatorProfile {
+  id               String      @id @default(uuid()) @db.Uuid
+  creatorId        String      @unique @db.Uuid
+  displayName      String
+  bio              String?
+  avatarUrl        String?
+  website          String?
+  categories       String[]    @default([])
+  audienceCountries String[]   @default([])
+  channels         ChannelType[] @default([])
+  isPublic         Boolean     @default(true)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  creator Creator @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@map("creator_profiles")
+}
+
+model SocialAccount {
+  id           String    @id @default(uuid()) @db.Uuid
+  creatorId    String    @db.Uuid
+  platform     ChannelType
+  handle       String
+  profileUrl   String?
+  followers    Int?
+  verifiedAt   DateTime?
+  accessToken  String? // encrypted at rest
+  refreshToken String? // encrypted at rest
+  tokenExpires DateTime?
+  lastSyncedAt DateTime?
+  createdAt    DateTime  @default(now())
+
+  creator Creator @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([creatorId, platform, handle])
+  @@map("social_accounts")
+}
+
+// ---------------------------------------------------------------------------
+// Campaigns
+// ---------------------------------------------------------------------------
+
+model Campaign {
+  id          String         @id @default(uuid()) @db.Uuid
+  brandId     String         @db.Uuid
+  slug        String         @unique
+  name        String
+  objective   String
+  category    String
+  description String
+  offerSummary String
+  destinationUrl String
+  status      CampaignStatus @default(DRAFT)
+  isPublic    Boolean        @default(true)
+
+  payoutModel      PayoutModel
+  payoutMicros     BigInt      @default(0) // publisher earning per billable event
+  revshareBps      Int         @default(0) // publisher share of conversion revenue, basis points
+  platformFeeBps   Int? // overrides brand/platform default
+  platformFeeFlatMicros BigInt @default(0)
+
+  attributionWindowHours Int  @default(720)
+  cookieDurationHours    Int  @default(720)
+  dedupeWindowMinutes    Int  @default(1440)
+
+  requiresApproval Boolean @default(false)
+  minAge           Int?
+  disclosureRequirement String?
+
+  allowedCountries    String[]      @default([])
+  blockedCountries    String[]      @default([])
+  allowedChannels     ChannelType[] @default([])
+  prohibitedChannels  ChannelType[] @default([])
+
+  conversionRules  String?
+  termsBody        String
+  termsVersion     Int           @default(1)
+
+  moderationScore  Int?
+  moderationFlags  String[]      @default([])
+  moderationNotes  String?
+  reviewedAt       DateTime?
+  reviewedByUserId String?       @db.Uuid
+
+  startsAt   DateTime?
+  endsAt     DateTime?
+  launchedAt DateTime?
+  pausedAt   DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  brand        Brand                @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  rules        CampaignRule[]
+  creatives    CampaignCreative[]
+  budget       CampaignBudget?
+  links        TrackingLink[]
+  conversions  Conversion[]
+  earnings     Earning[]
+  applications CampaignApplication[]
+  disputes     Dispute[]
+  deposits     BrandDeposit[]
+  invitations  CampaignInvitation[]
+  stats        StatHourly[]
+
+  @@index([status, isPublic])
+  @@index([brandId, status])
+  @@index([category])
+  @@index([payoutModel])
+  @@map("campaigns")
+}
+
+model CampaignRule {
+  id        String   @id @default(uuid()) @db.Uuid
+  campaignId String  @db.Uuid
+  kind      String // ALLOWED | PROHIBITED | REQUIREMENT
+  label     String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("campaign_rules")
+}
+
+model CampaignCreative {
+  id         String        @id @default(uuid()) @db.Uuid
+  campaignId String        @db.Uuid
+  kind       CreativeKind
+  usage      CreativeUsage @default(OPTIONAL)
+  title      String
+  body       String?
+  assetUrl   String?
+  width      Int?
+  height     Int?
+  createdAt  DateTime      @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("campaign_creatives")
+}
+
+/// Single row per campaign guarding spend. Every billable event takes a
+/// row lock here (SELECT ... FOR UPDATE) so concurrent events cannot overspend.
+model CampaignBudget {
+  id                 String   @id @default(uuid()) @db.Uuid
+  campaignId         String   @unique @db.Uuid
+  totalBudgetMicros  BigInt   @default(0) // brand-declared cap
+  fundedMicros       BigInt   @default(0) // money actually escrowed
+  reservedMicros     BigInt   @default(0) // committed to pending earnings + fees
+  spentMicros        BigInt   @default(0) // approved & settled
+  dailyCapMicros     BigInt? // optional pacing cap
+  lowBalanceBps      Int      @default(1500) // notify at 15% remaining
+  lowBalanceNotifiedAt DateTime?
+  exhaustedAt        DateTime?
+  version            Int      @default(0)
+  updatedAt          DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("campaign_budgets")
+}
+
+model CampaignApplication {
+  id         String            @id @default(uuid()) @db.Uuid
+  campaignId String            @db.Uuid
+  creatorId  String            @db.Uuid
+  status     ApplicationStatus @default(PENDING)
+  message    String?
+  decidedAt  DateTime?
+  decidedByUserId String?      @db.Uuid
+  decisionNote String?
+  createdAt  DateTime          @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  creator  Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, creatorId])
+  @@index([creatorId, status])
+  @@map("campaign_applications")
+}
+
+model CampaignInvitation {
+  id         String   @id @default(uuid()) @db.Uuid
+  campaignId String   @db.Uuid
+  brandId    String   @db.Uuid
+  creatorId  String   @db.Uuid
+  message    String?
+  acceptedAt DateTime?
+  declinedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  brand    Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  creator  Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, creatorId])
+  @@map("campaign_invitations")
+}
+
+// ---------------------------------------------------------------------------
+// Tracking
+// ---------------------------------------------------------------------------
+
+model TrackingLink {
+  id            String    @id @default(uuid()) @db.Uuid
+  code          String    @unique // short, cryptographically random public identifier
+  campaignId    String    @db.Uuid
+  creatorId     String    @db.Uuid
+  label         String?
+  subId         String?
+  utmSource     String?
+  utmMedium     String?
+  utmCampaign   String?
+  utmContent    String?
+  utmTerm       String?
+  channel       ChannelType?
+  destinationOverride String?
+  active        Boolean   @default(true)
+  termsVersion  Int
+  termsAcceptedAt DateTime
+  clickCount    BigInt    @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  creator  Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, creatorId])
+  @@index([creatorId, createdAt])
+  @@map("tracking_links")
+}
+
+/// High-volume. Partitioned monthly by createdAt (see migration SQL).
+/// Deliberately has no inbound foreign keys so partitions can be detached/dropped
+/// by the retention job without cascade scans.
+model Click {
+  id             String           @default(uuid()) @db.Uuid
+  createdAt      DateTime         @default(now())
+  linkId         String           @db.Uuid
+  campaignId     String           @db.Uuid
+  creatorId      String           @db.Uuid
+  brandId        String           @db.Uuid
+  ipHash         String
+  ipPrefixHash   String // /24-equivalent bucket, for burst detection without storing IPs
+  country        String?
+  region         String?
+  city           String?
+  deviceType     String?
+  browser        String?
+  os             String?
+  isBot          Boolean          @default(false)
+  referrerHost   String?
+  referrerUrl    String?
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+  utmContent     String?
+  utmTerm        String?
+  subId          String?
+  fraudScore     Int              @default(0)
+  fraudSignals   String[]         @default([])
+  eligibility    ClickEligibility @default(ELIGIBLE)
+  billable       Boolean          @default(false)
+  earningId      String?          @db.Uuid
+  sessionFp      String // device/session fingerprint hash used for dedupe
+  latencyMs      Int?
+
+  @@id([id, createdAt])
+  @@index([campaignId, createdAt])
+  @@index([creatorId, createdAt])
+  @@index([linkId, createdAt])
+  @@index([ipPrefixHash, createdAt])
+  @@index([sessionFp, createdAt])
+  @@index([eligibility, createdAt])
+  @@map("clicks")
+}
+
+/// High-volume. Partitioned monthly by createdAt.
+model Impression {
+  id         String   @default(uuid()) @db.Uuid
+  createdAt  DateTime @default(now())
+  linkId     String   @db.Uuid
+  campaignId String   @db.Uuid
+  creatorId  String   @db.Uuid
+  ipHash     String
+  country    String?
+  billable   Boolean  @default(false)
+  fraudScore Int      @default(0)
+  sessionFp  String
+
+  @@id([id, createdAt])
+  @@index([campaignId, createdAt])
+  @@index([creatorId, createdAt])
+  @@map("impressions")
+}
+
+model Conversion {
+  id             String           @id @default(uuid()) @db.Uuid
+  campaignId     String           @db.Uuid
+  creatorId      String           @db.Uuid
+  linkId         String?          @db.Uuid
+  clickId        String?          @db.Uuid // soft reference into partitioned clicks
+  clickAt        DateTime?
+  externalId     String // brand-supplied conversion id
+  idempotencyKey String           @unique
+  eventType      BillableEvent
+  revenueMicros  BigInt           @default(0)
+  payoutMicros   BigInt           @default(0)
+  feeMicros      BigInt           @default(0)
+  currency       String           @default("usd")
+  status         ConversionStatus @default(PENDING)
+  statusReason   String?
+  fraudScore     Int              @default(0)
+  fraudSignals   String[]         @default([])
+  source         String // pixel | s2s | api | webhook | manual
+  metadata       Json?
+  attributedAt   DateTime         @default(now())
+  approvedAt     DateTime?
+  rejectedAt     DateTime?
+  reversedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  campaign Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  earnings Earning[]
+
+  @@unique([campaignId, externalId])
+  @@index([creatorId, createdAt])
+  @@index([campaignId, createdAt])
+  @@index([status])
+  @@index([clickId])
+  @@map("conversions")
+}
+
+// ---------------------------------------------------------------------------
+// Money: earnings, ledger, payouts
+// ---------------------------------------------------------------------------
+
+model Earning {
+  id             String        @id @default(uuid()) @db.Uuid
+  creatorId      String        @db.Uuid
+  campaignId     String        @db.Uuid
+  conversionId   String?       @db.Uuid
+  clickId        String?       @db.Uuid
+  eventType      BillableEvent
+  quantity       Int           @default(1)
+  grossMicros    BigInt // total charged to the brand
+  feeMicros      BigInt // platform fee
+  netMicros      BigInt // publisher earning (gross - fee)
+  status         EarningStatus @default(PENDING)
+  statusReason   String?
+  idempotencyKey String        @unique
+  payoutId       String?       @db.Uuid
+  approvedAt     DateTime?
+  availableAt    DateTime?
+  reversedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  creator    Creator     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  campaign   Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  conversion Conversion? @relation(fields: [conversionId], references: [id])
+  payout     Payout?     @relation(fields: [payoutId], references: [id])
+
+  @@index([creatorId, status])
+  @@index([campaignId, createdAt])
+  @@index([creatorId, createdAt])
+  @@index([status, availableAt])
+  @@map("earnings")
+}
+
+model LedgerAccount {
+  id            String            @id @default(uuid()) @db.Uuid
+  type          LedgerAccountType
+  ownerKind     String // platform | brand | creator | campaign | external
+  /// Empty string for singleton platform/external accounts. Deliberately NOT
+  /// nullable: Postgres treats NULLs as distinct in a unique index, so a
+  /// nullable owner would silently permit duplicate platform accounts.
+  ownerId       String    @default("")
+  currency      String            @default("usd")
+  balanceMicros BigInt            @default(0) // cached; reconciled against entries
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  entries LedgerEntry[]
+
+  @@unique([type, ownerKind, ownerId, currency])
+  @@index([ownerKind, ownerId])
+  @@map("ledger_accounts")
+}
+
+model LedgerTransaction {
+  id             String          @id @default(uuid()) @db.Uuid
+  kind           TransactionKind
+  idempotencyKey String          @unique
+  description    String
+  actorUserId    String?         @db.Uuid
+  reason         String?
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+
+  entries LedgerEntry[]
+
+  @@index([kind, createdAt])
+  @@map("ledger_transactions")
+}
+
+/// Immutable. Never updated or deleted — corrections are new offsetting entries.
+model LedgerEntry {
+  id            String         @id @default(uuid()) @db.Uuid
+  transactionId String         @db.Uuid
+  accountId     String         @db.Uuid
+  direction     EntryDirection
+  amountMicros  BigInt
+  balanceAfter  BigInt
+  createdAt     DateTime       @default(now())
+
+  transaction LedgerTransaction @relation(fields: [transactionId], references: [id])
+  account     LedgerAccount     @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, createdAt])
+  @@index([transactionId])
+  @@map("ledger_entries")
+}
+
+model Payout {
+  id               String       @id @default(uuid()) @db.Uuid
+  creatorId        String       @db.Uuid
+  amountMicros     BigInt
+  amountCents      Int
+  currency         String       @default("usd")
+  status           PayoutStatus @default(REQUESTED)
+  method           String       @default("stripe_connect")
+  stripeTransferId String?      @unique
+  stripePayoutId   String?
+  failureCode      String?
+  failureMessage   String?
+  idempotencyKey   String       @unique
+  holdReason       String?
+  requestedAt      DateTime     @default(now())
+  approvedAt       DateTime?
+  processedAt      DateTime?
+  paidAt           DateTime?
+  failedAt         DateTime?
+
+  creator  Creator   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  earnings Earning[]
+
+  @@index([creatorId, status])
+  @@index([status, requestedAt])
+  @@map("payouts")
+}
+
+// ---------------------------------------------------------------------------
+// Fraud & disputes
+// ---------------------------------------------------------------------------
+
+model FraudEvent {
+  id          String              @id @default(uuid()) @db.Uuid
+  creatorId   String?             @db.Uuid
+  campaignId  String?             @db.Uuid
+  clickId     String?             @db.Uuid
+  conversionId String?            @db.Uuid
+  score       Int
+  band        String // LOW | REVIEW | SUSPICIOUS | HIGH
+  signals     Json // [{code, severity, weight, detail}]
+  entityKind  String // click | conversion | creator | campaign
+  resolution  String? // approved | rejected | held | suspended | investigating
+  resolvedByUserId String?        @db.Uuid
+  resolvedAt  DateTime?
+  resolutionNote String?
+  severity    FraudSignalSeverity @default(MEDIUM)
+  createdAt   DateTime            @default(now())
+
+  creator Creator? @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([creatorId, createdAt])
+  @@index([resolution])
+  @@index([band, createdAt])
+  @@map("fraud_events")
+}
+
+model Dispute {
+  id           String          @id @default(uuid()) @db.Uuid
+  reference    String          @unique
+  kind         DisputeKind
+  status       DisputeStatus   @default(OPEN)
+  openedBy     DisputeOpenedBy
+  openedByUserId String        @db.Uuid
+  brandId      String?         @db.Uuid
+  creatorId    String?         @db.Uuid
+  campaignId   String?         @db.Uuid
+  subject      String
+  body         String
+  amountMicros BigInt          @default(0)
+  targetKind   String? // click | conversion | earning | payout
+  targetIds    String[]        @default([])
+  resolution   String?
+  resolvedByUserId String?     @db.Uuid
+  resolvedAt   DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  brand    Brand?           @relation(fields: [brandId], references: [id])
+  creator  Creator?         @relation(fields: [creatorId], references: [id])
+  campaign Campaign?        @relation(fields: [campaignId], references: [id])
+  messages DisputeMessage[]
+
+  @@index([status, createdAt])
+  @@index([brandId])
+  @@index([creatorId])
+  @@map("disputes")
+}
+
+model DisputeMessage {
+  id          String   @id @default(uuid()) @db.Uuid
+  disputeId   String   @db.Uuid
+  authorUserId String  @db.Uuid
+  body        String
+  attachments Json? // [{name, url, size, contentType}]
+  internal    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  dispute Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorUserId], references: [id])
+
+  @@index([disputeId, createdAt])
+  @@map("dispute_messages")
+}
+
+// ---------------------------------------------------------------------------
+// Platform infrastructure
+// ---------------------------------------------------------------------------
+
+model PlatformSetting {
+  key         String   @id
+  value       Json
+  description String
+  updatedByUserId String? @db.Uuid
+  updatedAt   DateTime @updatedAt
+
+  @@map("platform_settings")
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  type      String
+  title     String
+  body      String
+  actionUrl String?
+  readAt    DateTime?
+  emailedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model WebhookEndpoint {
+  id         String   @id @default(uuid()) @db.Uuid
+  brandId    String   @db.Uuid
+  url        String
+  secret     String // encrypted at rest
+  events     String[] @default([])
+  active     Boolean  @default(true)
+  failureCount Int    @default(0)
+  disabledAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  brand      Brand             @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+
+  @@index([brandId])
+  @@map("webhook_endpoints")
+}
+
+model WebhookDelivery {
+  id           String    @id @default(uuid()) @db.Uuid
+  endpointId   String    @db.Uuid
+  eventType    String
+  eventId      String
+  payload      Json
+  attempt      Int       @default(0)
+  maxAttempts  Int       @default(8)
+  status       String    @default("pending") // pending | delivered | failed | dead
+  responseCode Int?
+  responseBody String?
+  errorMessage String?
+  nextAttemptAt DateTime?
+  deliveredAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([endpointId, createdAt])
+  @@index([status, nextAttemptAt])
+  @@map("webhook_deliveries")
+}
+
+model ApiKey {
+  id         String    @id @default(uuid()) @db.Uuid
+  brandId    String    @db.Uuid
+  name       String
+  prefix     String    @unique // shown in UI, e.g. pk_live_a1b2c3
+  keyHash    String    @unique
+  scopes     String[]  @default([])
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId])
+  @@map("api_keys")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  actorUserId  String?  @db.Uuid
+  actorRole    String?
+  actorIpHash  String?
+  action       String
+  entityKind   String
+  entityId     String?
+  reason       String?
+  before       Json?
+  after        Json?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id])
+
+  @@index([entityKind, entityId])
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model TermsVersion {
+  id        String    @id @default(uuid()) @db.Uuid
+  kind      TermsKind
+  version   Int
+  title     String
+  body      String
+  effectiveAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+
+  acceptances TermsAcceptance[]
+
+  @@unique([kind, version])
+  @@map("terms_versions")
+}
+
+model TermsAcceptance {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Uuid
+  termsVersionId String  @db.Uuid
+  ipHash        String?
+  userAgent     String?
+  acceptedAt    DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  termsVersion TermsVersion @relation(fields: [termsVersionId], references: [id])
+
+  @@unique([userId, termsVersionId])
+  @@map("terms_acceptances")
+}
+
+/// Durable background job queue. Claimed with FOR UPDATE SKIP LOCKED.
+model Job {
+  id             String    @id @default(uuid()) @db.Uuid
+  queue          String    @default("default")
+  type           String
+  payload        Json
+  status         JobStatus @default(QUEUED)
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(5)
+  runAt          DateTime  @default(now())
+  lockedAt       DateTime?
+  lockedBy       String?
+  lastError      String?
+  idempotencyKey String?   @unique
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([status, runAt])
+  @@index([queue, status, runAt])
+  @@map("jobs")
+}
+
+/// Hourly rollups powering dashboards without scanning raw click partitions.
+model StatHourly {
+  id              String   @id @default(uuid()) @db.Uuid
+  bucket          DateTime // truncated to the hour, UTC
+  campaignId      String   @db.Uuid
+  creatorId       String?  @db.Uuid
+  clicks          Int      @default(0)
+  qualifiedClicks Int      @default(0)
+  uniqueVisitors  Int      @default(0)
+  impressions     Int      @default(0)
+  conversions     Int      @default(0)
+  grossMicros     BigInt   @default(0)
+  netMicros       BigInt   @default(0)
+  feeMicros       BigInt   @default(0)
+  revenueMicros   BigInt   @default(0)
+  updatedAt       DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([bucket, campaignId, creatorId])
+  @@index([campaignId, bucket])
+  @@index([creatorId, bucket])
+  @@map("stat_hourly")
+}
+
+model ExportJob {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  kind        String // clicks | conversions | earnings | creators | spend | payouts
+  scopeKind   String // brand | creator | admin
+  scopeId     String?
+  filters     Json
+  status      String    @default("queued") // queued | running | ready | failed
+  rowCount    Int?
+  fileUrl     String?
+  storageKey  String?
+  errorMessage String?
+  expiresAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("export_jobs")
+}
+
+/// Records every Stripe event id we have processed so replays are no-ops.
+model StripeEvent {
+  id          String   @id // Stripe's event id
+  type        String
+  processedAt DateTime @default(now())
+  payload     Json
+
+  @@index([type, processedAt])
+  @@map("stripe_events")
+}
+
+/// Generic idempotency ledger for inbound API/postback traffic.
+model IdempotencyRecord {
+  key        String   @id
+  scope      String
+  statusCode Int
+  response   Json
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("idempotency_records")
+}
