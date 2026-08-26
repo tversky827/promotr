@@ -1,0 +1,21 @@
+# The build installs its own dependencies and produces its own build output.
+# Copying the host's would overwrite binaries compiled for a different platform
+# — Prisma's engines and any native module — with ones that cannot run in the
+# image, and would bloat the build context by hundreds of megabytes.
+node_modules
+.next
+out
+
+# Never let a real secret into an image layer.
+.env
+.env.*
+!.env.example
+
+.git
+.gitignore
+
+# Local noise.
+*.log
+coverage
+.DS_Store
+tests/__screenshots__

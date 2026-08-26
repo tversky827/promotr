@@ -43,6 +43,22 @@ This is a complete application, not a scaffold. It has:
 
 ## Getting started
 
+### With Docker — one command
+
+```bash
+docker compose up
+```
+
+Brings up Postgres, applies the migrations, loads seed data, and starts both the
+web application and the background worker. Open http://localhost:3000 and sign
+in with any account the seed prints (password `DevPassword123!`).
+
+`docker compose down -v` throws the database away and starts over. The keys in
+`docker-compose.yml` are fixed development values, not secrets, and the
+application refuses to boot in production without real ones.
+
+### Without Docker
+
 Requirements: Node 22+, PostgreSQL 16+ (14 works), and optionally Redis.
 
 ```bash

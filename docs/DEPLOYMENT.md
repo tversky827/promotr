@@ -48,9 +48,18 @@ Then, in order:
 
 ## Platforms
 
+### Locally, with Compose
+
+`docker-compose.yml` in the repository root runs the whole stack — Postgres,
+migrations, seed data, the application and the worker — with `docker compose up`.
+It is a development stack: it carries fixed keys so one command is enough, and
+it seeds fake activity. Do not point it at anything real.
+
 ### A container platform (recommended)
 
-Two processes from one image:
+Two processes from one image. `Dockerfile` in the repository root is the one the
+Compose stack uses; for production, add `npm prune --omit=dev` after the build
+so the Prisma CLI and the seed script do not ship:
 
 ```dockerfile
 FROM node:22-slim AS build

@@ -1,0 +1,98 @@
+# Promotr — local stack.
+#
+#   docker compose up
+#
+# Brings up Postgres, applies migrations, loads seed data, and starts the web
+# application and the background worker. Sign in at http://localhost:3000 with
+# any of the accounts the seed prints (password DevPassword123!).
+#
+# This is a development stack. The keys below are fixed so that one command is
+# enough to get running; they are not secrets and must never be used for real
+# data. Set the same variables in your shell to override them. See
+# docs/DEPLOYMENT.md for production.
+
+x-app-env: &app-env
+  NODE_ENV: production
+  DATABASE_URL: postgresql://promotr:promotr@db:5432/promotr
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+  NEXT_PUBLIC_TRACKING_URL: http://localhost:3000
+  # Development-only keys. Generate real ones with `openssl rand -base64 32`.
+  APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:-ZGV2LW9ubHkta2V5LW5vdC1mb3ItcHJvZHVjdGlvbiE=}
+  IP_HASH_SECRET: ${IP_HASH_SECRET:-ZGV2LW9ubHktaXAtc2FsdC1ub3QtZm9yLXByb2QhISE=}
+  # Emails are written to this container's log rather than sent anywhere.
+  EMAIL_PROVIDER: console
+  # No proxy sits in front of this stack, so client addresses must not be
+  # taken from a header a client can set.
+  TRUST_PROXY: "false"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: promotr
+      POSTGRES_PASSWORD: promotr
+      POSTGRES_DB: promotr
+    volumes:
+      - promotr-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U promotr -d promotr']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    # Published so you can inspect the database with psql or a GUI client.
+    ports:
+      - '5432:5432'
+
+  # Runs once, then exits. The application waits for it to succeed.
+  migrate:
+    image: promotr:local
+    build:
+      context: .
+    environment:
+      <<: *app-env
+      NODE_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy
+    # The seed refuses to run against a database that already holds data, which
+    # is exactly what should happen on the second `up` — so a refusal here is
+    # reported and ignored rather than blocking the stack from starting.
+    command: >
+      sh -c "npx prisma migrate deploy &&
+             (npm run db:seed || echo '--- seed skipped: the database already has data ---')"
+    restart: 'no'
+
+  app:
+    image: promotr:local
+    build:
+      context: .
+    environment: *app-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - '3000:3000'
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  worker:
+    image: promotr:local
+    build:
+      context: .
+    environment: *app-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ['npm', 'run', 'worker']
+    restart: unless-stopped
+
+volumes:
+  promotr-db:
