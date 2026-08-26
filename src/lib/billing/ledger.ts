@@ -40,6 +40,7 @@ const CREDIT_NATURED: ReadonlySet<LedgerAccountType> = new Set<LedgerAccountType
   'PUBLISHER_PENDING',
   'PUBLISHER_AVAILABLE',
   'PLATFORM_REVENUE',
+  'PAYOUT_CLEARING',
   'ROUNDING',
 ]);
 
@@ -383,11 +384,6 @@ export const accounts = {
   }),
   publisherAvailable: (creatorId: string): AccountRef => ({
     type: 'PUBLISHER_AVAILABLE',
-    ownerKind: 'creator',
-    ownerId: creatorId,
-  }),
-  publisherPaid: (creatorId: string): AccountRef => ({
-    type: 'PUBLISHER_PAID',
     ownerKind: 'creator',
     ownerId: creatorId,
   }),

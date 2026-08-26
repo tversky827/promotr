@@ -9,7 +9,7 @@
     "dev": "next dev -p 3000",
     "build": "prisma generate && next build",
     "start": "next start -p 3000",
-    "worker": "node --env-file-if-exists=.env --experimental-strip-types scripts/worker.ts",
+    "worker": "node --env-file-if-exists=.env --experimental-transform-types scripts/worker.ts",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

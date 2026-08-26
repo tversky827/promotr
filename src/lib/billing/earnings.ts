@@ -407,7 +407,7 @@ export interface BalanceSummary {
 }
 
 export async function balanceSummary(creatorId: string): Promise<BalanceSummary> {
-  const [pending, available, paid, grouped] = await Promise.all([
+  const [pending, available, paidAgg, grouped] = await Promise.all([
     prisma.ledgerAccount.findUnique({
       where: {
         type_ownerKind_ownerId_currency: {
@@ -430,16 +430,12 @@ export async function balanceSummary(creatorId: string): Promise<BalanceSummary>
       },
       select: { balanceMicros: true },
     }),
-    prisma.ledgerAccount.findUnique({
-      where: {
-        type_ownerKind_ownerId_currency: {
-          type: 'PUBLISHER_PAID',
-          ownerKind: 'creator',
-          ownerId: creatorId,
-          currency: 'usd',
-        },
-      },
-      select: { balanceMicros: true },
+    // Paid-to-date comes from settled payouts, not a ledger account: a
+    // cumulative counter has no natural double-entry counterparty, and adding
+    // one would double-count the movement the clearing account already records.
+    prisma.payout.aggregate({
+      where: { creatorId, status: 'PAID' },
+      _sum: { amountMicros: true },
     }),
     prisma.earning.groupBy({
       by: ['status'],
@@ -457,7 +453,7 @@ export async function balanceSummary(creatorId: string): Promise<BalanceSummary>
   return {
     pendingMicros: pending?.balanceMicros ?? 0n,
     availableMicros: available?.balanceMicros ?? 0n,
-    paidMicros: paid?.balanceMicros ?? 0n,
+    paidMicros: paidAgg._sum.amountMicros ?? 0n,
     lifetimeMicros: lifetime,
     underReviewMicros: byStatus.get('UNDER_REVIEW') ?? 0n,
   };
