@@ -14,6 +14,7 @@ import {
 import { Alert } from '@/components/ui/primitives';
 import { Button, type ButtonProps } from '@/components/ui/button';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
 import type { ActionResult } from '@/server/actions/shared';
 
 /**
@@ -97,25 +98,7 @@ export function ActionForm<T>({
       startTransition(async () => {
         let result: ActionResult<T>;
         try {
-          result = await action(formData);
-
-          // The CSRF cookie can be lost independently of the session — privacy
-          // tooling, a per-cookie clear. Telling the user to refresh would not
-          // help, because a page render cannot set a cookie. Re-issue the token
-          // once and resubmit what they already typed.
-          if (!result.ok && result.code === 'CSRF') {
-            const refreshed = await fetch('/api/auth/csrf', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-            })
-              .then((response) => (response.ok ? response.json() : null))
-              .catch(() => null);
-
-            if (refreshed?.token) {
-              formData.set(CSRF_FIELD, refreshed.token);
-              result = await action(formData);
-            }
-          }
+          result = await runAction(action, formData);
         } catch {
           // A thrown error here means the action itself failed to execute
           // (network, deploy mid-request). The typed path handles everything else.

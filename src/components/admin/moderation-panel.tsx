@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, Card, CardHeader } from '@/components/ui/primitives';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
 import { moderateCampaignDecision } from '@/server/actions/admin';
 
 /**
@@ -40,7 +41,7 @@ export function ModerationPanel({
       formData.set('decision', decision);
       formData.set('notes', notes);
 
-      const result = await moderateCampaignDecision(formData);
+      const result = await runAction(moderateCampaignDecision, formData);
       if (!result.ok) {
         setError(result.error);
         return;

@@ -5,6 +5,8 @@ import { useState, useTransition } from 'react';
 
 import { Button, ButtonLink } from '@/components/ui/button';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
+import type { ActionResult } from '@/server/actions/shared';
 import {
   completeCampaign,
   launchCampaign,
@@ -39,7 +41,7 @@ export function CampaignActions({
   const [confirmEnd, setConfirmEnd] = useState(false);
 
   const run = (
-    fn: (formData: FormData) => Promise<{ ok: boolean; error?: string }>,
+    fn: (formData: FormData) => Promise<ActionResult<unknown>>,
     extra: Record<string, string> = {},
   ) => {
     setError(null);
@@ -49,7 +51,7 @@ export function CampaignActions({
       formData.set('campaignId', campaignId);
       for (const [key, value] of Object.entries(extra)) formData.set(key, value);
 
-      const result = await fn(formData);
+      const result = await runAction(fn, formData);
       if (!result.ok) {
         setError(result.error ?? 'That did not work.');
         return;

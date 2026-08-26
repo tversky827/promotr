@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ChipGroup, Input, Select, Switch, Textarea } from '@/components/ui/form';
 import { Alert, Badge, Card, CardHeader } from '@/components/ui/primitives';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
 import { CAMPAIGN_CATEGORIES, CHANNELS, COUNTRIES, PUBLISHER_TYPES } from '@/lib/taxonomy';
 import { addSocialAccount, removeSocialAccount, updateCreatorProfile } from '@/server/actions/creator';
 
@@ -122,7 +123,7 @@ function SocialAccounts({
       formData.set('handle', handle);
       formData.set('followers', followers);
 
-      const result = await addSocialAccount(formData);
+      const result = await runAction(addSocialAccount, formData);
       if (!result.ok) {
         setError(result.error);
         return;
@@ -138,7 +139,7 @@ function SocialAccounts({
       const formData = new FormData();
       formData.set(CSRF_FIELD, csrfToken);
       formData.set('id', id);
-      await removeSocialAccount(formData);
+      await runAction(removeSocialAccount, formData);
       router.refresh();
     });
   };

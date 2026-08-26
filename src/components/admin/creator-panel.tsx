@@ -6,6 +6,8 @@ import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, Card, CardHeader, Separator } from '@/components/ui/primitives';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
+import type { ActionResult } from '@/server/actions/shared';
 import {
   adjustCreatorBalance,
   setCreatorStatus,
@@ -47,7 +49,7 @@ export function CreatorAdminPanel({
   const reasonTooShort = reason.trim().length < 10;
 
   const run = (
-    fn: (formData: FormData) => Promise<{ ok: boolean; error?: string; message?: string }>,
+    fn: (formData: FormData) => Promise<ActionResult<unknown>>,
     fields: Record<string, string>,
   ) => {
     setError(null);
@@ -58,7 +60,7 @@ export function CreatorAdminPanel({
       formData.set('reason', reason);
       for (const [key, value] of Object.entries(fields)) formData.set(key, value);
 
-      const result = await fn(formData);
+      const result = await runAction(fn, formData);
       if (!result.ok) {
         setError(result.error ?? 'That did not work.');
         return;

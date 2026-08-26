@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, Badge, Card, CardHeader } from '@/components/ui/primitives';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
 import { startPayoutSetup, withdrawEarnings } from '@/server/actions/creator';
 
 /**
@@ -56,7 +57,7 @@ export function PayoutPanel({
     startTransition(async () => {
       const formData = new FormData();
       formData.set(CSRF_FIELD, csrfToken);
-      const result = await withdrawEarnings(formData);
+      const result = await runAction(withdrawEarnings, formData);
       if (result.ok) {
         setSuccess(result.message ?? 'Payout requested.');
         router.refresh();

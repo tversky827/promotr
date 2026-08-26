@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, Card, CardHeader } from '@/components/ui/primitives';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
 import { decideBrandVerification } from '@/server/actions/admin';
 
 /** Brand verification decision. Notes reach the brand verbatim. */
@@ -34,7 +35,7 @@ export function BrandAdminPanel({
       formData.set('decision', decision);
       formData.set('notes', notes);
 
-      const result = await decideBrandVerification(formData);
+      const result = await runAction(decideBrandVerification, formData);
       if (!result.ok) {
         setError(result.error);
         return;

@@ -325,6 +325,54 @@ describe('end-to-end over HTTP', () => {
     expect((await unknownKey.json()).error.code).toBe('UNAUTHORIZED');
   });
 
+  it('re-issues a CSRF token to a session that lost its cookie', async () => {
+    const loop = await seedLoop();
+
+    // A session whose CSRF cookie the browser has dropped. Without recovery,
+    // every form on the site would fail a check the user cannot fix.
+    const { generateToken } = await import('@/lib/crypto/ids');
+    const { hashToken } = await import('@/lib/crypto/hash');
+    const sessionToken = generateToken();
+    await testDb.session.create({
+      data: {
+        userId: loop.owner.id,
+        tokenHash: hashToken(sessionToken),
+        csrfSecretHash: hashToken(generateToken()),
+        expiresAt: new Date(Date.now() + 86_400_000),
+      },
+    });
+
+    const response = await fetch(`${BASE}/api/auth/csrf`, {
+      method: 'POST',
+      headers: { origin: BASE, cookie: `promotr_session=${sessionToken}` },
+    });
+    expect(response.status).toBe(200);
+
+    const { token } = (await response.json()) as { token: string };
+    expect(token).toBeTruthy();
+
+    // The new token is bound to that session, not merely echoed back.
+    const session = await testDb.session.findFirstOrThrow({
+      where: { tokenHash: hashToken(sessionToken) },
+      select: { csrfSecretHash: true },
+    });
+    expect(session.csrfSecretHash).toBe(hashToken(token));
+
+    // And it hands nothing to a caller with no session.
+    const anonymous = await fetch(`${BASE}/api/auth/csrf`, {
+      method: 'POST',
+      headers: { origin: BASE },
+    });
+    expect(anonymous.status).toBe(401);
+
+    // Nor to a cross-site caller holding a valid session cookie.
+    const crossSite = await fetch(`${BASE}/api/auth/csrf`, {
+      method: 'POST',
+      headers: { origin: 'https://evil.example', cookie: `promotr_session=${sessionToken}` },
+    });
+    expect(crossSite.status).toBe(403);
+  });
+
   it('applies security headers to application responses', async () => {
     const response = await fetch(`${BASE}/`);
 

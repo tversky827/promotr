@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
 import { requestCreatorExport } from '@/server/actions/creator';
 
 /**
@@ -31,7 +32,7 @@ export function ExportButton({
       formData.set('kind', kind);
       if (campaignId) formData.set('campaignId', campaignId);
 
-      const result = await requestCreatorExport(formData);
+      const result = await runAction(requestCreatorExport, formData);
       if (result.ok) {
         setState('queued');
         setMessage(result.message ?? 'Export started.');

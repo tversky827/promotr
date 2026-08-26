@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/form';
 import { Alert, Card, CardHeader } from '@/components/ui/primitives';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
 import { fundCampaign } from '@/server/actions/campaigns';
 
 /**
@@ -138,7 +139,7 @@ export function FundingPanel({
       formData.set('amount', amount);
       if (source === 'balance') formData.set('fromBalance', 'on');
 
-      const result = await fundCampaign(formData);
+      const result = await runAction(fundCampaign, formData);
       if (!result.ok) {
         setError(result.error);
         return;

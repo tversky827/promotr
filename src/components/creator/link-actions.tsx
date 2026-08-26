@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
 import { deactivateTrackingLink } from '@/server/actions/links';
 
 /**
@@ -45,7 +46,7 @@ export function LinkRowActions({
       const formData = new FormData();
       formData.set(CSRF_FIELD, csrfToken);
       formData.set('linkId', linkId);
-      const result = await deactivateTrackingLink(formData);
+      const result = await runAction(deactivateTrackingLink, formData);
       if (!result.ok) {
         setError(result.error);
         return;

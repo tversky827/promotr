@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, Badge, Card, CardHeader } from '@/components/ui/primitives';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
 import { addDisputeMessage, resolveDispute } from '@/server/actions/disputes';
 
 export interface ThreadMessage {
@@ -55,7 +56,7 @@ export function DisputeThread({
       formData.set('body', body);
       if (internal) formData.set('internal', 'on');
 
-      const result = await addDisputeMessage(formData);
+      const result = await runAction(addDisputeMessage, formData);
       if (!result.ok) {
         setError(result.error);
         return;
@@ -172,7 +173,7 @@ function AdminControls({
       formData.set('status', next);
       formData.set('resolution', resolution);
 
-      const result = await resolveDispute(formData);
+      const result = await runAction(resolveDispute, formData);
       if (!result.ok) {
         setError(result.error);
         return;

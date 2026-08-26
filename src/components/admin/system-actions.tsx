@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
 import { retryJob, runReconciliation } from '@/server/actions/admin';
 
 /** Operational controls: force a reconciliation, or re-queue a dead job. */
@@ -25,7 +26,7 @@ export function SystemActions({
     startTransition(async () => {
       const formData = new FormData();
       formData.set(CSRF_FIELD, csrfToken);
-      const result = await runReconciliation(formData);
+      const result = await runAction(runReconciliation, formData);
       setMessage(result.ok ? (result.message ?? 'Done.') : result.error);
       router.refresh();
     });
@@ -37,7 +38,7 @@ export function SystemActions({
       const formData = new FormData();
       formData.set(CSRF_FIELD, csrfToken);
       formData.set('jobId', retryJobId);
-      const result = await retryJob(formData);
+      const result = await runAction(retryJob, formData);
       setMessage(result.ok ? 'Re-queued.' : result.error);
       router.refresh();
     });

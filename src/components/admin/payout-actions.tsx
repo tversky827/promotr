@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
 import { decidePayout, runPayoutNow } from '@/server/actions/admin';
 
 /**
@@ -42,7 +43,7 @@ export function PayoutRowActions({
       formData.set('decision', mode === 'approve' ? 'approve' : 'reject');
       formData.set('reason', reason);
 
-      const result = await decidePayout(formData);
+      const result = await runAction(decidePayout, formData);
       if (!result.ok) {
         setError(result.error);
         return;
@@ -59,7 +60,7 @@ export function PayoutRowActions({
       const formData = new FormData();
       formData.set(CSRF_FIELD, csrfToken);
       formData.set('payoutId', payoutId);
-      const result = await runPayoutNow(formData);
+      const result = await runAction(runPayoutNow, formData);
       if (!result.ok) setError(result.error);
       router.refresh();
     });

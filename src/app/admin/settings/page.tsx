@@ -113,8 +113,9 @@ export default async function AdminSettingsPage() {
 
       <p className="mt-6 text-xs text-fg-subtle text-pretty">
         Values ending in <code className="font-mono">Micros</code> are in millionths of a currency
-        unit — 25000000 is $25.00. Values ending in <code className="font-mono">Bps</code> are basis
-        points — 2000 is 20%. See docs/ARCHITECTURE.md for why money is stored this way.
+        unit — 25000000 is $25.00. Money is stored this way so that sub-cent pricing, such as a
+        quarter-cent per click, is exact rather than rounded on every event. Values ending in{' '}
+        <code className="font-mono">Bps</code> are basis points — 2000 is 20%.
       </p>
     </>
   );

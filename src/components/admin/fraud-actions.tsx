@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
 import { resolveFraudEvent, setPayoutHold } from '@/server/actions/admin';
 
 /**
@@ -42,7 +43,7 @@ export function FraudActions({
       formData.set('resolution', resolution);
       formData.set('note', note);
 
-      const result = await resolveFraudEvent(formData);
+      const result = await runAction(resolveFraudEvent, formData);
       if (!result.ok) {
         setError(result.error);
         return;
@@ -62,7 +63,7 @@ export function FraudActions({
       formData.set('hold', 'true');
       formData.set('reason', note.trim() || 'Payouts held pending traffic quality investigation');
 
-      const result = await setPayoutHold(formData);
+      const result = await runAction(setPayoutHold, formData);
       if (!result.ok) {
         setError(result.error);
         return;

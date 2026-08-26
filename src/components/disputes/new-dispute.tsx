@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea } from '@/components/ui/form';
 import { Alert, Card, CardHeader } from '@/components/ui/primitives';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
 import { openDispute } from '@/server/actions/disputes';
 
 /**
@@ -68,7 +69,7 @@ export function NewDisputeDialog({
         formData.set('targetKind', role === 'publisher' ? 'earning' : 'conversion');
       }
 
-      const result = await openDispute(formData);
+      const result = await runAction(openDispute, formData);
       if (!result.ok) {
         setError(result.error);
         setFieldErrors(result.fieldErrors ?? {});

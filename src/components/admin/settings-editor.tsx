@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
 import { updatePlatformSetting } from '@/server/actions/admin';
 
 /**
@@ -47,7 +48,7 @@ export function SettingsEditor({
       formData.set('key', settingKey);
       formData.set('value', next);
 
-      const result = await updatePlatformSetting(formData);
+      const result = await runAction(updatePlatformSetting, formData);
       if (!result.ok) {
         setState('error');
         setError(result.error);

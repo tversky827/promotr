@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox, Input, RadioCard, Select, Textarea } from '@/components/ui/form';
 import { Alert, Badge, Card, CardHeader, Separator } from '@/components/ui/primitives';
 import { CSRF_FIELD } from '@/lib/auth/constants';
+import { runAction } from '@/lib/client/submit';
 import {
   CAMPAIGN_CATEGORIES,
   CAMPAIGN_OBJECTIVES,
@@ -150,7 +151,7 @@ export function CampaignWizard({
       }
     }
 
-    const result = draft.id ? await updateCampaign(formData) : await createCampaign(formData);
+    const result = draft.id ? await runAction(updateCampaign, formData) : await runAction(createCampaign, formData);
     setSubmitting(false);
 
     if (!result.ok) {
