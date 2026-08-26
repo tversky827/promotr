@@ -5,11 +5,12 @@ import { env } from '@/lib/env';
 import { hashIp, hashToken } from '@/lib/crypto/hash';
 import { generateCsrfToken, generateToken } from '@/lib/crypto/ids';
 import { logger } from '@/lib/observability/logger';
+import { CSRF_COOKIE, SESSION_COOKIE } from '@/lib/auth/constants';
+
+export { CSRF_COOKIE, SESSION_COOKIE };
 
 import type { User } from '@prisma/client';
 
-export const SESSION_COOKIE = 'promotr_session';
-export const CSRF_COOKIE = 'promotr_csrf';
 
 /** Idle-agnostic absolute lifetime. Sessions are also refreshed on activity. */
 const SESSION_TTL_DAYS = 30;

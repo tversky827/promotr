@@ -1,7 +1,7 @@
 import { cookies, headers } from 'next/headers';
 
+import { CSRF_COOKIE, CSRF_FIELD, CSRF_HEADER } from '@/lib/auth/constants';
 import { constantTimeEqual } from '@/lib/crypto/hash';
-import { CSRF_COOKIE } from '@/lib/auth/session';
 import { env } from '@/lib/env';
 
 /**
@@ -17,8 +17,7 @@ import { env } from '@/lib/env';
  * alone because it does not cover top-level POST navigations in every browser.
  */
 
-export const CSRF_HEADER = 'x-csrf-token';
-export const CSRF_FIELD = '_csrf';
+export { CSRF_FIELD, CSRF_HEADER };
 
 export class CsrfError extends Error {
   constructor(message = 'Request failed a cross-site request forgery check') {
