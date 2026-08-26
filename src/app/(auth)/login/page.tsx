@@ -10,13 +10,29 @@ import { LoginForm } from './login-form';
 
 export const metadata: Metadata = { title: 'Sign in', robots: { index: false, follow: true } };
 
-export default async function LoginPage() {
+/**
+ * Accepts a post-sign-in destination only if it is a path on this site. A
+ * `next` parameter that could carry a scheme or a host is an open redirect, and
+ * an open redirect on a sign-in page is a phishing primitive.
+ */
+function safeNext(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  if (!value.startsWith('/') || value.startsWith('//')) return undefined;
+  return value;
+}
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
   const session = await getSession();
   if (session) {
     redirect(
       session.user.mfaEnabled && !session.mfaSatisfied
         ? '/login/mfa'
-        : homePathFor(session.user.role),
+        : (safeNext(next) ?? homePathFor(session.user.role)),
     );
   }
 
@@ -35,7 +51,7 @@ export default async function LoginPage() {
       </div>
 
       <div className="card p-6">
-        <LoginForm csrfToken={csrfToken} />
+        <LoginForm csrfToken={csrfToken} next={safeNext(next)} />
       </div>
     </div>
   );

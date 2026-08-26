@@ -7,7 +7,7 @@ import { ActionForm, FormBody, SubmitButton, useFieldError } from '@/components/
 import { Input } from '@/components/ui/form';
 import { login } from '@/server/actions/auth';
 
-export function LoginForm({ csrfToken }: { csrfToken: string }) {
+export function LoginForm({ csrfToken, next }: { csrfToken: string; next?: string }) {
   const router = useRouter();
 
   return (
@@ -22,7 +22,8 @@ export function LoginForm({ csrfToken }: { csrfToken: string }) {
           return;
         }
         router.push(
-          data.role === 'ADMIN' ? '/admin' : data.role === 'CREATOR' ? '/creator' : '/brand',
+          next ??
+            (data.role === 'ADMIN' ? '/admin' : data.role === 'CREATOR' ? '/creator' : '/brand'),
         );
         router.refresh();
       }}
