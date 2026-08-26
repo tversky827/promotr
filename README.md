@@ -75,7 +75,7 @@ not configured rather than pretending to work. See
 | `npm start` | Serve the production build |
 | `npm run worker` | Background job worker — required in production |
 | `npm test` | Full test suite (needs a PostgreSQL test database) |
-| `npm run typecheck` | TypeScript, no emit |
+| `npm run typecheck` | TypeScript, no emit — the correctness gate |
 | `npm run verify` | typecheck + tests + build, the pre-deploy gate |
 | `npm run db:migrate` | Apply migrations in development |
 | `npm run db:deploy` | Apply migrations in production |
@@ -101,6 +101,13 @@ not configured rather than pretending to work. See
 Next.js 16 (App Router, server components, server actions) · React 19 ·
 TypeScript · PostgreSQL 16 with Prisma · Redis (optional) · Stripe Connect ·
 Tailwind CSS · Vitest.
+
+There is no separate linter. `next lint` was removed in Next 16, and adding
+ESLint back would mean roughly two hundred packages in a codebase that moves
+money. The compiler is configured to cover what a linter would catch that
+matters — `strict`, `noUncheckedIndexedAccess`, `noUnusedLocals`,
+`noUnusedParameters`, `noFallthroughCasesInSwitch` — and `npm run typecheck` is
+the gate.
 
 Dependencies are deliberately few. Password hashing, TOTP, S3 signing, SMTP,
 error reporting and charts are implemented against Node's standard library and

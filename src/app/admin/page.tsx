@@ -17,7 +17,7 @@ import {
 import { pageAdmin } from '@/lib/auth/guards';
 import { accounts, balanceOf, verifyGlobalBalance } from '@/lib/billing/ledger';
 import { prisma } from '@/lib/db';
-import { formatDate, formatNumber, formatRelative, humanize, statusTone } from '@/lib/format';
+import { formatDate, formatNumber, formatRelative, humanize } from '@/lib/format';
 import { formatMicros } from '@/lib/money';
 
 export const metadata: Metadata = { title: 'Admin overview' };

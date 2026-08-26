@@ -50,7 +50,6 @@ export function formatRelative(date: Date | string | null | undefined): string {
   if (!date) return '—';
   const then = new Date(date).getTime();
   const diffSeconds = Math.round((then - Date.now()) / 1000);
-  const abs = Math.abs(diffSeconds);
 
   const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
     ['second', 60],

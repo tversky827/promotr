@@ -10,7 +10,6 @@
     "build": "prisma generate && next build",
     "start": "next start -p 3000",
     "worker": "node --env-file-if-exists=.env --experimental-transform-types --import ./scripts/ts-runtime.mjs scripts/worker.ts",
-    "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

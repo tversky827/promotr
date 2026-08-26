@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { claim, deadLetterJobs, enqueue, markFailed, markSucceeded, queueStats, reclaimStalledJobs, retryDeadJob } from '@/lib/jobs/queue';
+import { claim, deadLetterJobs, enqueue, markFailed, queueStats, reclaimStalledJobs, retryDeadJob } from '@/lib/jobs/queue';
 import { Worker } from '@/lib/jobs/worker';
 import { rollupHour, rollupRecent } from '@/lib/analytics/rollup';
 import { derive, totals } from '@/lib/analytics/queries';

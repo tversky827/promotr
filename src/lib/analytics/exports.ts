@@ -425,7 +425,9 @@ const SPEND_HEADERS = [
 
 async function* spendRows(
   filters: ExportFilters,
-  scopeKind: string,
+  // Spend is always scoped by the id alone: a brand exporting its own spend and
+  // an administrator exporting one brand's spend want the same rows.
+  _scopeKind: string,
   scopeId: string | null,
 ): AsyncGenerator<unknown[][]> {
   const { from, to } = dateRange(filters);
