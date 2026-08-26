@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 
 import { ButtonLink } from '@/components/ui/button';
+import { Pagination } from '@/components/ui/pagination';
 import { Badge, Card, EmptyState, PageHeader } from '@/components/ui/primitives';
 import { TBody, TD, TH, THead, TR, Table, TableWrap } from '@/components/ui/table';
 import { pageBrand } from '@/lib/auth/guards';
@@ -13,19 +14,29 @@ import { formatMicros } from '@/lib/money';
 export const metadata: Metadata = { title: 'Campaigns' };
 export const dynamic = 'force-dynamic';
 
+const PER_PAGE = 25;
+
 export default async function BrandCampaignsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; page?: string }>;
 }) {
   const { brand } = await pageBrand();
-  const { status } = await searchParams;
+  const { status, page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam ?? '1') || 1);
 
-  const campaigns = await prisma.campaign.findMany({
-    where: { brandId: brand.id, ...(status ? { status: status as never } : {}) },
-    orderBy: { createdAt: 'desc' },
-    include: { budget: true, _count: { select: { links: true, conversions: true } } },
-  });
+  const where = { brandId: brand.id, ...(status ? { status: status as never } : {}) };
+
+  const [campaigns, total] = await Promise.all([
+    prisma.campaign.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * PER_PAGE,
+      take: PER_PAGE,
+      include: { budget: true, _count: { select: { links: true, conversions: true } } },
+    }),
+    prisma.campaign.count({ where }),
+  ]);
 
   const counts = await prisma.campaign.groupBy({
     by: ['status'],
@@ -125,6 +136,16 @@ export default async function BrandCampaignsPage({
           </TableWrap>
         </Card>
       )}
+
+      {total > PER_PAGE ? (
+        <Pagination
+          page={page}
+          totalPages={Math.max(1, Math.ceil(total / PER_PAGE))}
+          total={total}
+          perPage={PER_PAGE}
+          className="mt-6"
+        />
+      ) : null}
     </>
   );
 }

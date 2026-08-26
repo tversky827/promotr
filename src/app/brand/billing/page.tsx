@@ -49,6 +49,10 @@ export default async function BrandBillingPage() {
     }),
     prisma.campaignBudget.findMany({
       where: { campaign: { brandId: brand.id } },
+      // Bounded: a brand with hundreds of campaigns should not have this page
+      // render every budget row. The campaigns list is the complete view.
+      take: 50,
+      orderBy: { campaign: { createdAt: 'desc' } },
       select: {
         campaignId: true,
         fundedMicros: true,
@@ -110,7 +114,7 @@ export default async function BrandBillingPage() {
           <div className="p-5">
             <CardHeader
               title="Campaign budgets"
-              description="What each campaign is holding. Unspent budget can be returned to your balance from the campaign's funding page."
+              description="What each campaign is holding, most recent first. Unspent budget can be returned to your balance from the campaign's funding page."
             />
           </div>
           {budgets.length === 0 ? (
