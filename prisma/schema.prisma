@@ -1206,7 +1206,11 @@ model StatHourly {
   id              String   @id @default(uuid()) @db.Uuid
   bucket          DateTime // truncated to the hour, UTC
   campaignId      String   @db.Uuid
-  creatorId       String?  @db.Uuid
+  // Not nullable, and deliberately so: every source row (click, impression,
+  // conversion, earning) carries a publisher, and Postgres treats NULLs as
+  // distinct in a unique index — a nullable publisher here would make the
+  // ON CONFLICT in the rollup silently miss and duplicate a row per run.
+  creatorId       String   @db.Uuid
   clicks          Int      @default(0)
   qualifiedClicks Int      @default(0)
   uniqueVisitors  Int      @default(0)

@@ -28,8 +28,8 @@ export async function rollupHour(bucket: Date): Promise<number> {
     SELECT
       gen_random_uuid(),
       ${start},
-      c.campaign_id,
-      c.creator_id,
+      COALESCE(c.campaign_id, i.campaign_id, v.campaign_id, e.campaign_id),
+      COALESCE(c.creator_id, i.creator_id, v.creator_id, e.creator_id),
       COALESCE(c.clicks, 0),
       COALESCE(c.qualified, 0),
       COALESCE(c.uniques, 0),
@@ -77,7 +77,11 @@ export async function rollupHour(bucket: Date): Promise<number> {
       GROUP BY 1, 2
     ) e ON e.campaign_id = COALESCE(c.campaign_id, i.campaign_id, v.campaign_id)
        AND e.creator_id = COALESCE(c.creator_id, i.creator_id, v.creator_id)
+    -- A full outer join means any one source can be the only side present for
+    -- an hour, so both keys are read through the same COALESCE chain above. The
+    -- guard is belt and braces: all four sources have both columns NOT NULL.
     WHERE COALESCE(c.campaign_id, i.campaign_id, v.campaign_id, e.campaign_id) IS NOT NULL
+      AND COALESCE(c.creator_id, i.creator_id, v.creator_id, e.creator_id) IS NOT NULL
     ON CONFLICT (bucket, "campaignId", "creatorId") DO UPDATE SET
       clicks = EXCLUDED.clicks,
       "qualifiedClicks" = EXCLUDED."qualifiedClicks",
