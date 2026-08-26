@@ -1,4 +1,4 @@
-import { authenticateApiKey } from '@/lib/api/apikey';
+import { apiErrorCodeFor, authenticateApiKey } from '@/lib/api/apikey';
 import { apiError, apiRateLimited, apiSuccess, withApiErrorHandling } from '@/lib/api/response';
 import { availableMicros } from '@/lib/billing/budget';
 import { prisma } from '@/lib/db';
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export const GET = withApiErrorHandling(async (request: Request) => {
   const auth = await authenticateApiKey(request, 'campaigns:read');
-  if (!auth.ok) return apiError('UNAUTHORIZED', auth.message);
+  if (!auth.ok) return apiError(apiErrorCodeFor(auth.reason), auth.message);
 
   const limit = await checkRateLimit('api', auth.auth.brand.id);
   if (!limit.allowed) return apiRateLimited(limit);

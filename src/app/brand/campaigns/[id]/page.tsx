@@ -40,7 +40,7 @@ import {
   humanize,
   statusTone,
 } from '@/lib/format';
-import { formatMicros } from '@/lib/money';
+import { formatMicros, formatUnitPrice } from '@/lib/money';
 
 export const metadata: Metadata = { title: 'Campaign' };
 export const dynamic = 'force-dynamic';
@@ -191,7 +191,7 @@ export default async function BrandCampaignPage({
           label="Spend"
           value={formatMicros(metrics.grossMicros, { showSubCent: false })}
           hint={
-            metrics.conversions > 0 ? `${formatMicros(metrics.cpaMicros)} per conversion` : undefined
+            metrics.conversions > 0 ? `${formatUnitPrice(metrics.cpaMicros)} per conversion` : undefined
           }
         />
       </StatGrid>

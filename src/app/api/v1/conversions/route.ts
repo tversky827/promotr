@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { authenticateApiKey } from '@/lib/api/apikey';
+import { apiErrorCodeFor, authenticateApiKey } from '@/lib/api/apikey';
 import {
   apiError,
   apiRateLimited,
@@ -58,7 +58,7 @@ export const POST = withApiErrorHandling(async (request: Request) => {
   const auth = await authenticateApiKey(request, 'conversions:write');
   if (!auth.ok) {
     return apiError(
-      auth.reason === 'SCOPE' ? 'FORBIDDEN' : 'UNAUTHORIZED',
+      apiErrorCodeFor(auth.reason),
       auth.message,
       { headers: PUBLIC_CORS_HEADERS },
     );
@@ -150,7 +150,11 @@ export const POST = withApiErrorHandling(async (request: Request) => {
 /** Look up a previously reported conversion. */
 export const GET = withApiErrorHandling(async (request: Request) => {
   const auth = await authenticateApiKey(request, 'campaigns:read');
-  if (!auth.ok) return apiError('UNAUTHORIZED', auth.message, { headers: PUBLIC_CORS_HEADERS });
+  if (!auth.ok) {
+    return apiError(apiErrorCodeFor(auth.reason), auth.message, {
+      headers: PUBLIC_CORS_HEADERS,
+    });
+  }
 
   const url = new URL(request.url);
   const conversionId = url.searchParams.get('conversion_id');

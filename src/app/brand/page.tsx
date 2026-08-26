@@ -32,7 +32,7 @@ import {
   humanize,
   statusTone,
 } from '@/lib/format';
-import { formatMicros } from '@/lib/money';
+import { formatMicros, formatUnitPrice } from '@/lib/money';
 
 export const metadata: Metadata = { title: 'Overview' };
 export const dynamic = 'force-dynamic';
@@ -127,7 +127,7 @@ export default async function BrandDashboard({
             />
             <Stat
               label="Cost per acquisition"
-              value={metrics.conversions > 0 ? formatMicros(metrics.cpaMicros) : '—'}
+              value={metrics.conversions > 0 ? formatUnitPrice(metrics.cpaMicros) : '—'}
               // A rising CPA is bad, so the colour mapping inverts.
               delta={undefined}
             />
@@ -152,7 +152,7 @@ export default async function BrandDashboard({
             />
             <Stat
               label="Effective CPC"
-              value={metrics.qualifiedClicks > 0 ? formatMicros(metrics.cpcMicros) : '—'}
+              value={metrics.qualifiedClicks > 0 ? formatUnitPrice(metrics.cpcMicros) : '—'}
             />
             <Stat
               label="Active publishers"

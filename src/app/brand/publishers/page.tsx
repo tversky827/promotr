@@ -11,7 +11,7 @@ import { currentCsrfToken } from '@/lib/auth/csrf';
 import { pageBrand } from '@/lib/auth/guards';
 import { prisma } from '@/lib/db';
 import { formatDateTime, formatNumber, formatPercent, humanize } from '@/lib/format';
-import { formatMicros } from '@/lib/money';
+import { formatMicros, formatUnitPrice } from '@/lib/money';
 
 export const metadata: Metadata = { title: 'Publishers' };
 export const dynamic = 'force-dynamic';
@@ -207,7 +207,7 @@ export default async function BrandPublishersPage({
                       <TD align="right">{formatNumber(publisher.conversions)}</TD>
                       <TD align="right">{formatPercent(publisher.conversionRate)}</TD>
                       <TD align="right">{formatMicros(publisher.netMicros)}</TD>
-                      <TD align="right">{formatMicros(publisher.epcMicros, { showSubCent: true })}</TD>
+                      <TD align="right">{formatUnitPrice(publisher.epcMicros)}</TD>
                     </TR>
                   ))
                 )}

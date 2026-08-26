@@ -16,7 +16,7 @@ import { SESSION_COOKIE } from '@/lib/auth/constants';
  * for a private page and a visitor without JavaScript sees a blank one.
  */
 
-const PROTECTED_PREFIXES = ['/brand', '/creator', '/admin', '/onboarding'];
+const PROTECTED_PREFIXES = ['/brand', '/creator', '/admin', '/onboarding', '/notifications'];
 
 export function middleware(request: NextRequest): NextResponse {
   const { pathname, search } = request.nextUrl;
@@ -37,5 +37,11 @@ export function middleware(request: NextRequest): NextResponse {
 }
 
 export const config = {
-  matcher: ['/brand/:path*', '/creator/:path*', '/admin/:path*', '/onboarding/:path*'],
+  matcher: [
+    '/brand/:path*',
+    '/creator/:path*',
+    '/admin/:path*',
+    '/onboarding/:path*',
+    '/notifications/:path*',
+  ],
 };

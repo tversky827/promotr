@@ -64,7 +64,11 @@ export function PageHeader({
             <p className="mt-1.5 max-w-2xl text-md text-fg-muted text-pretty">{description}</p>
           ) : null}
         </div>
-        {action ? <div className="flex shrink-0 items-center gap-2">{action}</div> : null}
+        {/* Wraps on narrow screens: a range picker plus a button is wider than
+            a phone, and `shrink-0` alone pushed the button off the edge. */}
+        {action ? (
+          <div className="flex flex-wrap items-center gap-2 sm:shrink-0">{action}</div>
+        ) : null}
       </div>
     </div>
   );

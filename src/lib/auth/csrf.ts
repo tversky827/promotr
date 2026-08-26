@@ -1,7 +1,8 @@
 import { cookies, headers } from 'next/headers';
 
-import { CSRF_COOKIE, CSRF_FIELD, CSRF_HEADER } from '@/lib/auth/constants';
-import { constantTimeEqual } from '@/lib/crypto/hash';
+import { CSRF_COOKIE, CSRF_FIELD, CSRF_HEADER, SESSION_COOKIE } from '@/lib/auth/constants';
+import { constantTimeEqual, hashToken } from '@/lib/crypto/hash';
+import { prisma } from '@/lib/db';
 import { env } from '@/lib/env';
 
 /**
@@ -69,12 +70,33 @@ function sameOrigin(a: string, b: string): boolean {
   }
 }
 
-/** Layer 2. */
+/**
+ * Layer 2, bound to the session.
+ *
+ * A plain double-submit check only proves that whoever sent the request could
+ * also read the cookie — which an attacker who can *write* a cookie for this
+ * site (a subdomain takeover, script injection on a sibling host) can fake by
+ * setting both halves. Comparing the token against the hash stored on the
+ * session row closes that: a forged cookie will not match a session's secret.
+ */
 export async function verifyCsrfToken(submitted: string | null | undefined): Promise<boolean> {
   if (!submitted) return false;
+
   const cookieValue = (await cookies()).get(CSRF_COOKIE)?.value;
-  if (!cookieValue) return false;
-  return constantTimeEqual(cookieValue, submitted);
+  if (!cookieValue || !constantTimeEqual(cookieValue, submitted)) return false;
+
+  const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
+  // No session: the double-submit pair is all there is to check, which is the
+  // right level for pre-authentication forms like sign-in and sign-up.
+  if (!sessionToken) return true;
+
+  const session = await prisma.session.findUnique({
+    where: { tokenHash: hashToken(sessionToken) },
+    select: { csrfSecretHash: true },
+  });
+  if (!session) return true;
+
+  return constantTimeEqual(session.csrfSecretHash, hashToken(submitted));
 }
 
 /**

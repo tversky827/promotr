@@ -31,9 +31,15 @@ export interface AuthenticatedApiKey {
   brand: Brand;
 }
 
+export type ApiAuthFailure = {
+  ok: false;
+  reason: 'MISSING' | 'INVALID' | 'REVOKED' | 'SUSPENDED' | 'SCOPE';
+  message: string;
+};
+
 export type ApiAuthResult =
   | { ok: true; auth: AuthenticatedApiKey }
-  | { ok: false; reason: 'MISSING' | 'INVALID' | 'REVOKED' | 'SUSPENDED' | 'SCOPE'; message: string };
+  | ApiAuthFailure;
 
 export async function authenticateApiKey(
   request: Request,
@@ -83,6 +89,18 @@ export async function authenticateApiKey(
     .catch(() => undefined);
 
   return { ok: true, auth: { apiKey: record, brand: record.brand } };
+}
+
+/**
+ * The right HTTP answer for a failed authentication.
+ *
+ * A missing or invalid key is 401 — "we do not know who you are". A valid key
+ * without the scope is 403 — "we know exactly who you are, and this is not
+ * yours". Collapsing both into 401 leaves an integrator guessing which of the
+ * two they are looking at, and the difference is the whole debugging session.
+ */
+export function apiErrorCodeFor(reason: ApiAuthFailure['reason']): 'UNAUTHORIZED' | 'FORBIDDEN' {
+  return reason === 'SCOPE' || reason === 'SUSPENDED' ? 'FORBIDDEN' : 'UNAUTHORIZED';
 }
 
 export async function createApiKey(params: {

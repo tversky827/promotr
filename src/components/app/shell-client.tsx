@@ -185,7 +185,7 @@ export function UserMenu({
   return (
     <div className="relative flex items-center gap-1" ref={ref}>
       <Link
-        href={user.role === 'CREATOR' ? '/creator/notifications' : '/notifications'}
+        href="/notifications"
         className="relative grid size-9 place-items-center rounded-md text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg"
         aria-label={
           user.unread > 0 ? `Notifications, ${user.unread} unread` : 'Notifications'

@@ -300,6 +300,31 @@ describe('end-to-end over HTTP', () => {
     expect(await testDb.click.count()).toBe(0);
   });
 
+  it('answers 403, not 401, when a key is valid but lacks the scope', async () => {
+    const loop = await seedLoop();
+
+    // A conversion-only key, which is what a checkout integration should hold.
+    const { createApiKey } = await import('@/lib/api/apikey');
+    const scoped = await createApiKey({
+      brandId: loop.brand.id,
+      name: 'Conversions only',
+      scopes: ['conversions:write'],
+    });
+
+    const readAttempt = await fetch(`${BASE}/api/v1/campaigns`, {
+      headers: { Authorization: `Bearer ${scoped.key}` },
+    });
+    // 401 would say "we do not know who you are", which is not what happened.
+    expect(readAttempt.status).toBe(403);
+    expect((await readAttempt.json()).error.code).toBe('FORBIDDEN');
+
+    const unknownKey = await fetch(`${BASE}/api/v1/campaigns`, {
+      headers: { Authorization: 'Bearer pk_live_definitely_not_a_key' },
+    });
+    expect(unknownKey.status).toBe(401);
+    expect((await unknownKey.json()).error.code).toBe('UNAUTHORIZED');
+  });
+
   it('applies security headers to application responses', async () => {
     const response = await fetch(`${BASE}/`);
 

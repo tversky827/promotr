@@ -1,4 +1,4 @@
-import { authenticateApiKey } from '@/lib/api/apikey';
+import { apiErrorCodeFor, authenticateApiKey } from '@/lib/api/apikey';
 import { apiError, apiRateLimited, apiSuccess, withApiErrorHandling } from '@/lib/api/response';
 import { recordConversion } from '@/lib/conversions/record';
 import { prisma } from '@/lib/db';
@@ -43,7 +43,7 @@ export const GET = withApiErrorHandling(async (request: Request) => {
     // Postback senders rarely surface response bodies, so the status code
     // carries the meaning. The body is logged for the brand's own debugging.
     logger.warn('postback.unauthorized', { reason: auth.reason });
-    return apiError('UNAUTHORIZED', auth.message);
+    return apiError(apiErrorCodeFor(auth.reason), auth.message);
   }
 
   const limit = await checkRateLimit('conversionIngest', auth.auth.brand.id);

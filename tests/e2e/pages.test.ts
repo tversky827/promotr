@@ -97,6 +97,7 @@ const BRAND_PAGES = [
   '/brand/developers',
   '/brand/disputes',
   '/brand/settings',
+  '/notifications',
 ];
 
 const CREATOR_PAGES = [
@@ -109,6 +110,7 @@ const CREATOR_PAGES = [
   '/creator/profile',
   '/creator/disputes',
   '/creator/settings',
+  '/notifications',
   '/campaigns',
 ];
 

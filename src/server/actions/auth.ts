@@ -783,3 +783,23 @@ export async function exportMyData(): Promise<ActionResult<{ json: string }>> {
     json: JSON.stringify(payload, (_k, v) => (typeof v === 'bigint' ? v.toString() : v), 2),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+const notificationSchema = z.object({ notificationId: z.string().uuid() });
+
+export const markNotificationRead = action(notificationSchema, async (input) => {
+  const session = await requireSession();
+  const { markRead } = await import('@/lib/notify');
+  await markRead(session.user.id, input.notificationId);
+  return actionOk(undefined);
+});
+
+export const markAllNotificationsRead = action(z.object({}), async () => {
+  const session = await requireSession();
+  const { markAllRead } = await import('@/lib/notify');
+  const count = await markAllRead(session.user.id);
+  return actionOk(undefined, count > 0 ? `${count} marked as read.` : 'Nothing unread.');
+});

@@ -29,7 +29,7 @@ import {
   statusTone,
   humanize,
 } from '@/lib/format';
-import { formatMicros } from '@/lib/money';
+import { formatMicros, formatUnitPrice } from '@/lib/money';
 
 export const metadata: Metadata = { title: 'Overview' };
 export const dynamic = 'force-dynamic';
@@ -135,7 +135,7 @@ export default async function CreatorDashboard({
         <Stat label="Conversions" value={formatNumber(metrics.conversions)} />
         <Stat
           label="EPC"
-          value={formatMicros(metrics.epcMicros)}
+          value={formatUnitPrice(metrics.epcMicros)}
           hint="Earnings per click"
           tone="primary"
         />

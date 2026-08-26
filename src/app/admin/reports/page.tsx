@@ -24,7 +24,7 @@ import {
   formatNumber,
   formatPercent,
 } from '@/lib/format';
-import { formatMicros } from '@/lib/money';
+import { formatMicros, formatUnitPrice } from '@/lib/money';
 
 export const metadata: Metadata = { title: 'Reports' };
 export const dynamic = 'force-dynamic';
@@ -176,7 +176,7 @@ export default async function AdminReportsPage({
                         {formatNumber(publisher.clicks)}
                       </TD>
                       <TD align="right" numeric>
-                        {formatMicros(publisher.epcMicros)}
+                        {formatUnitPrice(publisher.epcMicros)}
                       </TD>
                       <TD align="right" numeric className="font-medium">
                         {formatMicros(publisher.grossMicros, { showSubCent: false })}

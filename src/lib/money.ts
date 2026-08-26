@@ -150,6 +150,21 @@ export function isZero(v: Micros): boolean {
  * Format micros for display. Shows extra precision only when the amount
  * genuinely has sub-cent detail, so "$0.25" does not render as "$0.2500".
  */
+/**
+ * Formats a derived per-unit price — cost per click, earnings per click, cost
+ * per acquisition.
+ *
+ * These come out of a division and almost never land on a whole cent, so
+ * `formatMicros` would render four decimals for all of them. Four decimals are
+ * genuinely useful below a dollar, where a tenth of a cent is a meaningful
+ * difference in a bid; above a dollar they are noise, and "$24.0218" reads as a
+ * bug rather than as precision.
+ */
+export function formatUnitPrice(micros: Micros, options: { currency?: string } = {}): string {
+  const abs = micros < 0n ? -micros : micros;
+  return formatMicros(micros, { ...options, showSubCent: abs < MICROS_PER_UNIT });
+}
+
 export function formatMicros(
   micros: Micros,
   options: { currency?: string; locale?: string; showSubCent?: boolean } = {},

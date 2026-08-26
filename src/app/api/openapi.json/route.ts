@@ -147,6 +147,11 @@ function spec() {
           description: 'Missing, invalid, or revoked API key.',
           content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
         },
+        Forbidden: {
+          description:
+            'The key is valid but lacks the required scope, or the account is suspended.',
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
+        },
         RateLimited: {
           description: 'Too many requests.',
           headers: {
@@ -192,6 +197,7 @@ function spec() {
             },
             '200': { description: 'Duplicate — already recorded, nothing charged.' },
             '401': { $ref: '#/components/responses/Unauthorized' },
+            '403': { $ref: '#/components/responses/Forbidden' },
             '404': { description: 'No such campaign on this account.' },
             '422': { description: 'Validation failed, or the conversion could not be attributed.' },
             '429': { $ref: '#/components/responses/RateLimited' },
@@ -283,6 +289,7 @@ function spec() {
               },
             },
             '401': { $ref: '#/components/responses/Unauthorized' },
+            '403': { $ref: '#/components/responses/Forbidden' },
           },
         },
       },
