@@ -29,6 +29,17 @@ const BASE = `http://127.0.0.1:${PORT}`;
 
 let server: ChildProcess | null = null;
 
+/** Kills the whole process group, not just the npm wrapper. */
+function stopServer(): void {
+  if (!server?.pid) return;
+  try {
+    process.kill(-server.pid, 'SIGTERM');
+  } catch {
+    server.kill('SIGTERM');
+  }
+  server = null;
+}
+
 async function waitForServer(timeoutMs = 90_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -76,6 +87,10 @@ const BRAND_PAGES = [
   '/brand',
   '/brand/campaigns',
   '/brand/campaigns/new',
+  // Filled in once the loop campaign exists.
+  '__CAMPAIGN__',
+  '__CAMPAIGN_EDIT__',
+  '__CAMPAIGN_FUNDING__',
   '/brand/publishers',
   '/brand/reports',
   '/brand/billing',
@@ -86,6 +101,7 @@ const BRAND_PAGES = [
 
 const CREATOR_PAGES = [
   '/creator',
+  '__CAMPAIGN_DETAIL__',
   '/creator/links',
   '/creator/earnings',
   '/creator/payouts',
@@ -161,7 +177,10 @@ describe('every page renders', () => {
         NEXT_PUBLIC_TRACKING_URL: BASE,
       },
       stdio: 'ignore',
-      detached: false,
+      // Its own process group: `npm start` spawns the real server as a child,
+      // and signalling only the wrapper leaves that child holding the port —
+      // where the next run silently talks to the previous build.
+      detached: true,
     });
 
     const loop = await seedLoop();
@@ -178,6 +197,14 @@ describe('every page renders', () => {
 
     tenantMarkers = [loop.brand.displayName, loop.creator.handle, loop.campaign.name];
 
+    // Campaign-scoped pages can only be addressed once a campaign exists.
+    BRAND_PAGES[BRAND_PAGES.indexOf('__CAMPAIGN__')] = `/brand/campaigns/${loop.campaign.id}`;
+    BRAND_PAGES[BRAND_PAGES.indexOf('__CAMPAIGN_EDIT__')] =
+      `/brand/campaigns/${loop.campaign.id}/edit`;
+    BRAND_PAGES[BRAND_PAGES.indexOf('__CAMPAIGN_FUNDING__')] =
+      `/brand/campaigns/${loop.campaign.id}/funding`;
+    CREATOR_PAGES[CREATOR_PAGES.indexOf('__CAMPAIGN_DETAIL__')] = `/campaigns/${loop.campaign.slug}`;
+
     [brandCookie, creatorCookie, adminCookie] = await Promise.all([
       signIn(loop.owner.id),
       signIn(loop.creatorUser.id),
@@ -188,7 +215,7 @@ describe('every page renders', () => {
   }, 180_000);
 
   afterAll(async () => {
-    server?.kill('SIGTERM');
+    stopServer();
     await disconnect();
     await prisma.$disconnect();
   });

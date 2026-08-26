@@ -1,0 +1,193 @@
+# Deployment
+
+## What has to run
+
+| Component | Required | Notes |
+| --- | --- | --- |
+| The web application | yes | Next.js, Node 22+ |
+| PostgreSQL 14+ | yes | 16 recommended; the ledger lives here |
+| A background worker | yes | Payouts, rollups, retention, email, webhooks |
+| Redis | strongly recommended | Required if you run more than one instance |
+| Object storage | recommended | Creative uploads and CSV exports |
+
+The worker is not optional. Without it: earnings never move from approved to
+available, payouts never process, dashboards never update, webhooks never
+deliver, and click partitions are never created — which eventually stops clicks
+being recordable at all.
+
+Run it as a process (`npm run worker`), or, where you cannot, call
+`/api/cron/tick` every minute from a scheduler with `CRON_SECRET`. The endpoint
+drains what it can within one request; that is fine at low volume and not a
+substitute for a worker under load.
+
+## First deploy
+
+```bash
+npm ci
+npx prisma migrate deploy        # never `migrate dev` in production
+npm run build
+npm start                        # and, separately, npm run worker
+```
+
+Then, in order:
+
+1. Create the first administrator. There is no bootstrap back door: sign up
+   normally, then promote the row.
+   ```sql
+   UPDATE users SET role = 'ADMIN' WHERE email = 'you@example.com';
+   ```
+2. Sign in and enable two-factor authentication. Administrator accounts cannot
+   perform privileged actions without satisfying MFA in the current session.
+3. Open **Admin → Settings** and set the platform fee, payout minimum and fraud
+   thresholds for your market.
+4. Open **Admin → System health** and confirm each integration reports as
+   configured.
+5. Point Stripe's webhooks at `/api/webhooks/stripe` and copy the signing
+   secret into `STRIPE_WEBHOOK_SECRET`. **Payouts and deposits only settle on a
+   verified webhook**, so a missing secret means money never lands.
+
+## Platforms
+
+### A container platform (recommended)
+
+Two processes from one image:
+
+```dockerfile
+FROM node:22-slim AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npx prisma generate && npm run build
+
+FROM node:22-slim
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /app ./
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+Run the worker from the same image with `CMD ["npm", "run", "worker"]`. Scale
+web instances horizontally; one or two workers is plenty at the volumes this is
+designed for, and any number is safe — jobs are claimed with
+`FOR UPDATE SKIP LOCKED`.
+
+Health check: `GET /api/health`. It returns 503 only when the database is
+unreachable. A missing Stripe key means payments are off, not that the instance
+should be taken out of rotation.
+
+### Vercel or similar
+
+The application deploys as-is. Two things need attention:
+
+- **No long-lived worker.** Add a cron entry calling `/api/cron/tick` every
+  minute with the `CRON_SECRET`, and be aware of the platform's function
+  timeout — the endpoint budgets 45 seconds.
+- **Connection pooling.** Set `DATABASE_URL` to the pooled endpoint and
+  `DIRECT_DATABASE_URL` to the direct one, which migrations use.
+
+### A single server
+
+Perfectly reasonable to start. Run Postgres, Redis, the app and the worker on
+one machine behind a reverse proxy that terminates TLS. Set `TRUST_PROXY=true`
+only because there is a proxy in front; if the Node process is directly exposed,
+set it to `false` or clients can spoof their address and defeat rate limiting
+and fraud detection.
+
+## Migrations
+
+`npx prisma migrate deploy` is forward-only and safe to run on every deploy. Two
+migrations are hand-written (partitioning, integrity triggers) and are annotated
+in place.
+
+Deploy order matters when a migration changes a column the running code uses:
+apply migrations first, then release code, and prefer additive changes so old
+and new code can both run during the rollover.
+
+Check for drift:
+
+```bash
+npx prisma migrate diff --from-schema-datamodel prisma/schema.prisma \
+                        --to-schema-datasource prisma/schema.prisma
+```
+
+Generated columns and GIN indexes always appear as differences; anything else is
+real drift.
+
+## Backups
+
+The ledger is the record of what you owe. Treat backups accordingly:
+
+- Point-in-time recovery on, with at least 7 days of retention.
+- Nightly logical dumps stored somewhere the application cannot reach, so a
+  compromise of the app is not a compromise of the backups.
+- **Restore one, on a schedule.** A backup that has never been restored is a
+  hypothesis, not a backup.
+- After any restore, run reconciliation from **Admin → System health** and
+  confirm the ledger balances globally.
+
+## Scheduled work
+
+The worker schedules all of this itself; the table is here so you know what is
+running.
+
+| Job | Cadence | Purpose |
+| --- | --- | --- |
+| `analytics.rollup` | every minute | Dashboard figures, recomputing the last two hours |
+| `earnings.release` | every minute | Approved earnings whose hold has elapsed become withdrawable |
+| `budget.alert` | every 5 minutes | Low-balance notifications |
+| `campaign.complete` | every 5 minutes | Campaigns past their end date |
+| `fraud.recompute` | hourly | Publisher account risk scores |
+| `payout.reconcile` | hourly | Provider payout state versus ours |
+| `conversions.autoapprove` | hourly | Pending conversions past the approval window |
+| `partitions.ensure` | hourly | Create next month's click partitions ahead of need |
+| `ledger.reconcile` | daily | Cached balances versus the sum of entries |
+| `retention.prune` | daily | Drop click partitions past retention |
+
+`payout.process`, `export.generate`, `email.send` and `webhook.dispatch` are
+enqueued by the action that needs them rather than on a schedule.
+
+## Monitoring
+
+Watch these, and alert on them:
+
+| Signal | Why it matters |
+| --- | --- |
+| `ledger.drift_detected` | A balance disagrees with its entries. Investigate immediately |
+| Global balance check failing | Debits no longer equal credits. Stop and investigate |
+| Dead-lettered jobs | Work that will never complete on its own |
+| Rollup age over two hours | Dashboards are stale; the worker may be down |
+| Webhook endpoints auto-disabled | A brand has stopped receiving events |
+| 5xx rate | Sentry, when configured |
+| Database connections, replication lag, disk | The usual |
+
+The status page at `/status` measures the same things from inside and is safe to
+expose publicly — it reports capabilities, not infrastructure.
+
+## Scaling
+
+In the order the pressure usually arrives:
+
+1. **Redis**, as soon as there is more than one web instance.
+2. **A read replica** for reporting, if dashboards start competing with the
+   write path.
+3. **More workers** if the queue backs up. They coordinate through the database.
+4. **Shorter click retention.** Dropping a partition is instant; aggregates are
+   unaffected.
+5. **A CDN** in front of static assets and the redirect, if traffic is
+   geographically spread.
+
+The redirect is the hot path. It resolves from a 30-second cache and defers
+everything else past the response, so a viral link costs one cached lookup.
+
+## Rollback
+
+Code rolls back by redeploying the previous image. Migrations do not roll back
+automatically, which is why additive changes matter. If a release must be
+reverted after a destructive migration, restore from backup and replay — and
+reconcile the ledger afterwards.
+
+## Before you take real money
+
+See [LAUNCH.md](LAUNCH.md). It is a checklist, not a formality.

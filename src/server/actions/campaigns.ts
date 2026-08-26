@@ -296,6 +296,19 @@ export const updateCampaign = action(updateSchema, async (input, context) => {
     },
   });
 
+  // Prohibited-practice rules are replaced wholesale rather than diffed: the
+  // form submits the complete set, so anything absent was deselected.
+  await prisma.$transaction([
+    prisma.campaignRule.deleteMany({ where: { campaignId: campaign.id, kind: 'PROHIBITED' } }),
+    prisma.campaignRule.createMany({
+      data: input.prohibitedPresets.map((preset) => ({
+        campaignId: campaign.id,
+        kind: 'PROHIBITED',
+        label: preset,
+      })),
+    }),
+  ]);
+
   if (needsReReview) {
     await enqueue('campaign.moderate', { campaignId: campaign.id });
   }

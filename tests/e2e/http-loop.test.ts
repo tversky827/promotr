@@ -25,6 +25,17 @@ const CHROME =
 
 let server: ChildProcess | null = null;
 
+/** Kills the whole process group, not just the npm wrapper. */
+function stopServer(): void {
+  if (!server?.pid) return;
+  try {
+    process.kill(-server.pid, 'SIGTERM');
+  } catch {
+    server.kill('SIGTERM');
+  }
+  server = null;
+}
+
 async function waitForServer(timeoutMs = 60_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -62,13 +73,16 @@ describe('end-to-end over HTTP', () => {
         NEXT_PUBLIC_TRACKING_URL: BASE,
       },
       stdio: 'ignore',
-      detached: false,
+      // Its own process group: `npm start` spawns the real server as a child,
+      // and signalling only the wrapper leaves that child holding the port —
+      // where the next run silently talks to the previous build.
+      detached: true,
     });
     await waitForServer();
   }, 120_000);
 
   afterAll(async () => {
-    server?.kill('SIGTERM');
+    stopServer();
     await disconnect();
     await prisma.$disconnect();
   });
