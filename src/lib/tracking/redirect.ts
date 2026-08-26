@@ -74,6 +74,7 @@ interface CachedLink {
   creatorCreatedAt: string;
   creatorRiskScore: number;
   creatorVerification: string;
+  creatorAudienceCountries: string[];
   linkSubId: string | null;
   linkUtm: {
     source: string | null;
@@ -108,6 +109,7 @@ async function resolveLink(code: string): Promise<CachedLink | null> {
           riskScore: true,
           verification: true,
           feeBpsOverride: true,
+          profile: { select: { audienceCountries: true } },
         },
       },
     },
@@ -139,6 +141,7 @@ async function resolveLink(code: string): Promise<CachedLink | null> {
     creatorCreatedAt: link.creator.createdAt.toISOString(),
     creatorRiskScore: link.creator.riskScore,
     creatorVerification: link.creator.verification,
+    creatorAudienceCountries: link.creator.profile?.audienceCountries ?? [],
     linkSubId: link.subId,
     linkUtm: {
       source: link.utmSource,
@@ -261,6 +264,7 @@ export async function recordClick(params: RecordClickParams): Promise<void> {
         creatorCreatedAt: new Date(link.creatorCreatedAt),
         creatorRiskScore: link.creatorRiskScore,
         creatorVerification: link.creatorVerification,
+        creatorAudienceCountries: link.creatorAudienceCountries,
       });
 
       fraudScore = assessment.score;

@@ -18,7 +18,6 @@ export type SignalCode =
   | 'AUTOMATION_UA'
   | 'KNOWN_CRAWLER'
   | 'MISSING_USER_AGENT'
-  | 'DATACENTER_ASN'
   // Duplication and velocity
   | 'DUPLICATE_CLICK'
   | 'RAPID_REPEAT'
@@ -37,12 +36,10 @@ export type SignalCode =
   | 'PUBLISHER_HIGH_RISK'
   | 'NEW_PUBLISHER'
   // Conversion-specific
-  | 'DUPLICATE_CONVERSION'
   | 'CONVERSION_WITHOUT_CLICK'
   | 'CONVERSION_TOO_FAST'
   | 'ABNORMAL_CONVERSION_RATE'
   | 'ATTRIBUTION_WINDOW_EXPIRED'
-  | 'ABNORMAL_CTR'
   | 'REVENUE_OUTLIER';
 
 export type Severity = 'INFO' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -75,13 +72,6 @@ export const SIGNALS: Record<SignalCode, SignalDefinition> = {
     weight: 45,
     severity: 'HIGH',
     explanation: 'The request sent no user-agent header. Every real browser sends one.',
-  },
-  DATACENTER_ASN: {
-    code: 'DATACENTER_ASN',
-    weight: 35,
-    severity: 'MEDIUM',
-    explanation:
-      'The request originated from a hosting provider or datacenter network rather than a consumer connection.',
   },
   DUPLICATE_CLICK: {
     code: 'DUPLICATE_CLICK',
@@ -177,12 +167,6 @@ export const SIGNALS: Record<SignalCode, SignalDefinition> = {
     explanation:
       'The publisher account is new, so there is little history to judge this traffic against. Weighted lightly on purpose — being new is not suspicious.',
   },
-  DUPLICATE_CONVERSION: {
-    code: 'DUPLICATE_CONVERSION',
-    weight: 100,
-    severity: 'HIGH',
-    explanation: 'A conversion with this identifier has already been recorded.',
-  },
   CONVERSION_WITHOUT_CLICK: {
     code: 'CONVERSION_WITHOUT_CLICK',
     weight: 40,
@@ -209,13 +193,6 @@ export const SIGNALS: Record<SignalCode, SignalDefinition> = {
     severity: 'INFO',
     explanation:
       'The click happened outside the campaign’s attribution window, so the conversion cannot be credited to it.',
-  },
-  ABNORMAL_CTR: {
-    code: 'ABNORMAL_CTR',
-    weight: 25,
-    severity: 'MEDIUM',
-    explanation:
-      'The click-through rate for this placement is far outside the normal range for the campaign.',
   },
   REVENUE_OUTLIER: {
     code: 'REVENUE_OUTLIER',

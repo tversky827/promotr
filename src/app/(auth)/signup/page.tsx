@@ -7,6 +7,8 @@ import { getSession } from '@/lib/auth/session';
 import { homePathFor } from '@/lib/auth/guards';
 import { brand } from '@/lib/brand';
 
+import { GoogleButton } from '@/components/auth/google-button';
+
 import { SignupForm } from './signup-form';
 
 export const metadata: Metadata = {
@@ -40,6 +42,10 @@ export default async function SignupPage({
 
       <div className="card p-6">
         <SignupForm csrfToken={csrfToken} defaultType={type === 'brand' ? 'brand' : 'creator'} />
+        <GoogleButton
+          label="Continue with Google"
+          note="Creates a publisher account. Brands sign up with the form above, because a brand account names the legal entity we contract with."
+        />
       </div>
 
       <p className="mt-5 text-center text-xs text-fg-subtle text-pretty">

@@ -61,6 +61,8 @@ export interface ClickRiskInput {
   creatorCreatedAt: Date;
   creatorRiskScore: number;
   creatorVerification: string;
+  /** Countries the publisher declares their audience is in, if any. */
+  creatorAudienceCountries?: string[];
   /** Hash of the publisher's own last-known IP, for self-click detection. */
   creatorIpHash?: string | null;
 }
@@ -82,6 +84,7 @@ const IP_BURST_THRESHOLD = 20;
 const DEVICE_BURST_THRESHOLD = 15;
 const RAPID_REPEAT_SECONDS = 5;
 const NEW_PUBLISHER_DAYS = 3;
+const VELOCITY_WINDOW_MINUTES = 15;
 
 export async function assessClick(input: ClickRiskInput): Promise<RiskAssessment> {
   const settings = await getSettings();
@@ -177,10 +180,43 @@ export async function assessClick(input: ClickRiskInput): Promise<RiskAssessment
     );
   }
 
+  // --- Travel ---------------------------------------------------------------
+  // The same device appearing in two countries within minutes is either a VPN
+  // being cycled or a fingerprint being reused across a click farm. Neither is
+  // conclusive on its own, which is why this scores rather than disqualifies.
+  if (input.country) {
+    const elsewhere = await recentCountryFor(input.sessionFp, input.country);
+    if (elsewhere) {
+      signals.push(
+        signal(
+          'IMPOSSIBLE_VELOCITY',
+          `Same device seen in ${elsewhere} and ${input.country} within ${VELOCITY_WINDOW_MINUTES} minutes`,
+        ),
+      );
+    }
+  }
+
   // --- Self-clicking --------------------------------------------------------
 
   if (input.creatorIpHash && input.creatorIpHash === ipHash) {
     signals.push(signal('SELF_CLICK', "The click came from the publisher's own network"));
+  }
+
+  // --- Declared audience ----------------------------------------------------
+  // A weak signal by design: a publisher's audience legitimately spills beyond
+  // the countries they listed. It only matters alongside other evidence.
+  if (
+    input.country &&
+    input.creatorAudienceCountries &&
+    input.creatorAudienceCountries.length > 0 &&
+    !input.creatorAudienceCountries.includes(input.country)
+  ) {
+    signals.push(
+      signal(
+        'GEO_MISMATCH',
+        `Click from ${input.country}, outside the audience this publisher declares`,
+      ),
+    );
   }
 
   // --- Referrer -------------------------------------------------------------
@@ -207,6 +243,28 @@ export async function assessClick(input: ClickRiskInput): Promise<RiskAssessment
   }
 
   return score(signals, settings);
+}
+
+/**
+ * Returns a different country this device fingerprint was seen in recently, or
+ * null. Like every other lookup here it fails to "no evidence" rather than
+ * breaking the redirect.
+ */
+async function recentCountryFor(sessionFp: string, country: string): Promise<string | null> {
+  try {
+    const previous = await prisma.click.findFirst({
+      where: {
+        sessionFp,
+        createdAt: { gte: new Date(Date.now() - VELOCITY_WINDOW_MINUTES * 60_000) },
+        country: { not: null, notIn: [country] },
+      },
+      select: { country: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return previous?.country ?? null;
+  } catch {
+    return null;
+  }
 }
 
 interface ClickCountFilter {

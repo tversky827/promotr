@@ -6,6 +6,9 @@ import { currentCsrfToken } from '@/lib/auth/csrf';
 import { getSession } from '@/lib/auth/session';
 import { homePathFor } from '@/lib/auth/guards';
 
+import { GoogleButton } from '@/components/auth/google-button';
+import { Alert } from '@/components/ui/primitives';
+
 import { LoginForm } from './login-form';
 
 export const metadata: Metadata = { title: 'Sign in', robots: { index: false, follow: true } };
@@ -24,9 +27,9 @@ function safeNext(value: string | undefined): string | undefined {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, error } = await searchParams;
   const session = await getSession();
   if (session) {
     redirect(
@@ -50,8 +53,15 @@ export default async function LoginPage({
         </p>
       </div>
 
+      {error ? (
+        <Alert tone="danger" className="mb-4">
+          {error.slice(0, 200)}
+        </Alert>
+      ) : null}
+
       <div className="card p-6">
         <LoginForm csrfToken={csrfToken} next={safeNext(next)} />
+        <GoogleButton next={safeNext(next)} label="Continue with Google" />
       </div>
     </div>
   );

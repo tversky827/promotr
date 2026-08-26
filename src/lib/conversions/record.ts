@@ -155,6 +155,22 @@ export async function recordConversion(input: ConversionInput): Promise<Conversi
     );
   }
 
+  // An order worth many times the campaign's norm is either a genuine whale or
+  // an inflated revenue-share claim. Only meaningful once the campaign has
+  // enough history to have a norm at all.
+  const reportedRevenueMicros = input.revenueMicros ?? 0n;
+  if (reportedRevenueMicros > 0n && campaign.payoutModel === 'REVSHARE') {
+    const typical = await typicalRevenueMicros(campaign.id);
+    if (typical !== null && reportedRevenueMicros > typical * BigInt(REVENUE_OUTLIER_MULTIPLE)) {
+      signals.push(
+        signal(
+          'REVENUE_OUTLIER',
+          `Order value is more than ${REVENUE_OUTLIER_MULTIPLE}× this campaign's average`,
+        ),
+      );
+    }
+  }
+
   const settings = await getSettings();
   const score = Math.min(
     100,
@@ -309,6 +325,29 @@ export interface PayoutComputation {
 }
 
 /** The publisher's earning for one conversion, by compensation model. */
+/** How many times the campaign average counts as an outlier. */
+const REVENUE_OUTLIER_MULTIPLE = 10;
+/** Below this many prior conversions there is no norm to compare against. */
+const REVENUE_HISTORY_MINIMUM = 20;
+
+/**
+ * The campaign's average accepted order value, or null when there is too little
+ * history to judge. Rejected conversions are excluded — including them would
+ * let one bogus order raise the bar for every honest one after it.
+ */
+async function typicalRevenueMicros(campaignId: string): Promise<bigint | null> {
+  const rows = await prisma.$queryRaw<Array<{ count: bigint; total: bigint }>>`
+    SELECT COUNT(*)::bigint AS count, COALESCE(SUM("revenueMicros"), 0)::bigint AS total
+    FROM "conversions"
+    WHERE "campaignId" = ${campaignId}::uuid
+      AND status NOT IN ('REJECTED', 'REVERSED')
+      AND "revenueMicros" > 0
+  `;
+  const count = rows[0]?.count ?? 0n;
+  if (count < BigInt(REVENUE_HISTORY_MINIMUM)) return null;
+  return (rows[0]?.total ?? 0n) / count;
+}
+
 export function computePayout(input: PayoutComputation): bigint {
   switch (input.payoutModel) {
     case 'CPL':
