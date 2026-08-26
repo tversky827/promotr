@@ -50,6 +50,7 @@ export interface EnqueueOptions {
   /** Enqueue inside an existing transaction. */
   tx?: {
     job: { create: (args: { data: Record<string, unknown> }) => Promise<Job> };
+    $queryRaw: typeof prisma.$queryRaw;
   };
 }
 
@@ -67,18 +68,42 @@ export async function enqueue(
     idempotencyKey: options.idempotencyKey ?? null,
   };
 
+  // A duplicate idempotency key means the job already exists, which is the
+  // point of the key. Suppressing it in the INSERT rather than catching the
+  // constraint violation matters twice over: the client logs a Prisma error for
+  // every caught violation, which is exactly the noise that hides a real one —
+  // and inside a transaction a failed statement aborts the whole transaction,
+  // so catching it there is not recoverable at all.
+  if (options.idempotencyKey) {
+    const client = options.tx ?? prisma;
+    const [row] = await client.$queryRaw<Array<{ id: string }>>`
+      INSERT INTO "jobs" (id, queue, type, payload, "runAt", "maxAttempts", "idempotencyKey")
+      VALUES (
+        gen_random_uuid(),
+        ${data.queue},
+        ${data.type},
+        ${data.payload as never}::jsonb,
+        ${data.runAt},
+        ${data.maxAttempts},
+        ${options.idempotencyKey}
+      )
+      ON CONFLICT ("idempotencyKey") DO NOTHING
+      RETURNING id
+    `;
+
+    if (!row) {
+      logger.debug('job.duplicate_suppressed', { type, idempotencyKey: options.idempotencyKey });
+      return null;
+    }
+    return (await prisma.job.findUnique({ where: { id: row.id } })) as Job;
+  }
+
   try {
     if (options.tx) {
       return await options.tx.job.create({ data });
     }
     return await prisma.job.create({ data });
   } catch (error) {
-    // A duplicate idempotency key means the job already exists — that is the
-    // point of the key, not an error.
-    if ((error as { code?: string }).code === 'P2002') {
-      logger.debug('job.duplicate_suppressed', { type, idempotencyKey: options.idempotencyKey });
-      return null;
-    }
     logger.error('job.enqueue_failed', { type, error: (error as Error).message });
     throw error;
   }
