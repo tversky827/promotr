@@ -74,28 +74,51 @@ const trackingUrl = stripTrailingSlash(
 const databaseUrl = requiredInProduction('DATABASE_URL', '');
 
 /**
- * Base64 32-byte keys. In development a deterministic key derived from the
- * literal string is used so the app runs out of the box; production requires a
- * real random key because the development key is public knowledge.
+ * A 32-byte key, as base64.
+ *
+ * The documented way to produce one is `openssl rand -base64 32`, and a value
+ * of that shape is used exactly as given. But secrets are routinely pasted from
+ * a password manager or a hosting console, and those produce long random text
+ * rather than base64 — 40 mashed characters decode to 30 bytes, which used to
+ * fail the length check and stop the application from booting.
+ *
+ * So a secret that is not already a big enough base64 key is turned into one
+ * from its own bytes. The mapping is deterministic, so a given secret always
+ * yields the same key and nothing encrypted under it becomes unreadable.
  */
 function requiredKey(key: string): string {
-  const v = str(key, '');
-  if (v) {
-    let len = 0;
+  const raw = str(key, '');
+
+  if (raw) {
+    let decoded = 0;
     try {
-      len = Buffer.from(v, 'base64').length;
+      decoded = Buffer.from(raw, 'base64').length;
     } catch {
-      len = 0;
+      decoded = 0;
     }
-    if (len < 32) {
-      configErrors.push(`${key} must decode to at least 32 bytes (got ${len})`);
+    if (decoded >= 32) return raw;
+
+    // Take 32 bytes of the secret itself rather than hashing it: this module
+    // is evaluated in the edge runtime as well, where node:crypto does not
+    // exist. A 32-character random secret carries far more entropy than the
+    // key needs, and the mapping is deterministic, so nothing encrypted under
+    // a given secret becomes unreadable.
+    const bytes = Buffer.from(raw, 'utf8');
+    if (bytes.length >= 32) {
+      return bytes.subarray(0, 32).toString('base64');
     }
-    return v;
+
+    configErrors.push(
+      `${key} is too short: use at least 32 characters, or generate one with "openssl rand -base64 32"`,
+    );
+    return '';
   }
+
   if (isProduction) {
     configErrors.push(`${key} is required in production (openssl rand -base64 32)`);
     return '';
   }
+
   // Development-only deterministic fallback. Never used in production.
   return Buffer.from(`insecure-development-key::${key}`.padEnd(32, '.').slice(0, 32)).toString(
     'base64',
