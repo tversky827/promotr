@@ -61,7 +61,17 @@ the database, cron-job.org for the schedule.
 
 **1. Create the database.** On Neon, create a project and copy both connection
 strings: the pooled one and the direct one. You need both — see `directUrl` in
-`prisma/schema.prisma`.
+`prisma/schema.prisma`. They differ only by `-pooler` in the hostname:
+
+```
+pooled  postgresql://user:pw@ep-name-123-pooler.region.aws.neon.tech/db?sslmode=require
+direct  postgresql://user:pw@ep-name-123.region.aws.neon.tech/db?sslmode=require
+```
+
+Append `&pgbouncer=true&connection_limit=1` to the **pooled** one before using it
+as `DATABASE_URL`. Neon's pooler runs PgBouncer in transaction mode, which does
+not keep prepared statements between statements; without that flag Prisma
+eventually fails with "prepared statement already exists" under concurrency.
 
 **2. Apply the schema from your machine.**
 
