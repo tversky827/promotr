@@ -19,6 +19,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "node --env-file-if-exists=.env --experimental-transform-types --import ./scripts/ts-runtime.mjs prisma/seed.mts",
+    "db:seed:demo": "node --env-file-if-exists=.env --experimental-transform-types --import ./scripts/ts-runtime.mjs prisma/seed-demo.mts",
     "db:reset": "prisma migrate reset --force",
     "verify": "npm run typecheck && npm run test && npm run build"
   },
