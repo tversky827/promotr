@@ -99,9 +99,19 @@ export default async function CreatorDashboard({
             {formatMicros(balance.paidMicros)} paid out so far
           </p>
         </div>
-        <ButtonLink href="/creator/earnings#withdraw" size="lg" className="shrink-0">
-          Withdraw earnings
-        </ButtonLink>
+        {balance.availableMicros > 0n ? (
+          <ButtonLink href="/creator/earnings#withdraw" size="lg" className="shrink-0">
+            Withdraw earnings
+          </ButtonLink>
+        ) : (
+          // A withdraw button with nothing behind it is a promise the page
+          // cannot keep. Say what has to happen first instead.
+          <p className="max-w-xs shrink-0 text-sm text-fg-muted text-pretty sm:text-right">
+            {balance.pendingMicros > 0n
+              ? 'Nothing to withdraw yet — your pending earnings become available once their hold period ends.'
+              : 'Nothing to withdraw yet. Earnings appear here as traffic through your links qualifies.'}
+          </p>
+        )}
       </div>
 
       <StatGrid columns={5} className="mb-4">
