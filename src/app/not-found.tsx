@@ -23,7 +23,7 @@ export default function NotFound() {
             no longer works, the campaign has probably ended.
           </p>
           <div className="mt-7 flex flex-col justify-center gap-2 sm:flex-row">
-            <ButtonLink href="/campaigns">Browse campaigns</ButtonLink>
+            <ButtonLink href="/">Browse campaigns</ButtonLink>
             <ButtonLink href="/" variant="secondary">
               Go home
             </ButtonLink>

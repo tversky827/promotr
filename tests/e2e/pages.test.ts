@@ -92,7 +92,6 @@ const BRAND_PAGES = [
   '__CAMPAIGN_EDIT__',
   '__CAMPAIGN_FUNDING__',
   '/brand/publishers',
-  '/brand/reports',
   '/brand/billing',
   '/brand/developers',
   '/brand/disputes',
@@ -103,15 +102,20 @@ const BRAND_PAGES = [
 const CREATOR_PAGES = [
   '/creator',
   '__CAMPAIGN_DETAIL__',
-  '/creator/links',
   '/creator/earnings',
-  '/creator/payouts',
-  '/creator/exports',
-  '/creator/profile',
   '/creator/disputes',
   '/creator/settings',
   '/notifications',
-  '/campaigns',
+];
+
+/** Routes that were merged into another screen and now redirect there. */
+const MERGED_ROUTES: Array<[string, string]> = [
+  ['/creator/links', '/creator'],
+  ['/creator/payouts', '/creator/earnings'],
+  ['/creator/exports', '/creator/earnings'],
+  ['/creator/profile', '/creator/settings'],
+  ['/brand/reports', '/brand'],
+  ['/campaigns', '/'],
 ];
 
 const ADMIN_PAGES = [
@@ -134,7 +138,6 @@ const ADMIN_PAGES = [
 
 const PUBLIC_PAGES = [
   '/',
-  '/campaigns',
   '/status',
   '/login',
   '/signup',
@@ -298,6 +301,23 @@ describe('every page renders', () => {
       expect(body, `GET ${path}`).toContain('NEXT_REDIRECT');
       assertNoTenantData(path, body);
     }
+  });
+
+  it('sends a merged route to the screen that absorbed it', async () => {
+    for (const [from, to] of MERGED_ROUTES) {
+      const cookie = from.startsWith('/brand') ? brandCookie : creatorCookie;
+      const { status, location } = await get(from, cookie);
+      expect([301, 302, 307, 308], `GET ${from}`).toContain(status);
+      expect(location, `GET ${from}`).toContain(to);
+    }
+  });
+
+  it('serves the marketplace as the home page', async () => {
+    const { status, body } = await get('/');
+    expect(status).toBe(200);
+    // The campaign wall, not a brochure.
+    expect(body).toContain('Campaigns accepting traffic');
+    assertNoErrorMarkers('/', body);
   });
 
   it('returns 404 for a page that does not exist, not an error', async () => {

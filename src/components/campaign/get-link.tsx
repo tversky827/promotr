@@ -120,13 +120,15 @@ export function GetLinkPanel({
           apply to you is your responsibility — this is not legal advice.
         </p>
 
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <Button variant="secondary" fullWidth onClick={() => setGenerated(null)}>
+        {/* One action, not two: the copy field above is the point of this
+            screen, and the dashboard is one click away in the sidebar. */}
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <Button variant="secondary" onClick={() => setGenerated(null)}>
             Create another link
           </Button>
-          <ButtonLink href="/creator/links" fullWidth className="justify-center">
-            View all links
-          </ButtonLink>
+          <Link href="/creator" className="text-sm text-fg-muted hover:text-fg">
+            Your links
+          </Link>
         </div>
       </div>
     );

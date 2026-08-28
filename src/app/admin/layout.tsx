@@ -15,45 +15,39 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     prisma.payout.count({ where: { status: { in: ['REQUESTED', 'ON_HOLD'] } } }),
   ]);
 
+  // Nine entries, not fifteen. The pages that were removed from here are
+  // investigation tools rather than daily work, and the overview links to all
+  // of them — an operator reaches them when a case sends them there.
   const sections: NavSection[] = [
     {
       items: [
         { href: '/admin', label: 'Overview', icon: Icons.dashboard, exact: true },
-        { href: '/admin/system', label: 'System health', icon: Icons.activity },
+        {
+          href: '/admin/campaigns',
+          label: 'Campaigns',
+          icon: Icons.campaigns,
+          badge: pendingCampaigns,
+        },
+        { href: '/admin/fraud', label: 'Fraud', icon: Icons.shield, badge: openFraud },
       ],
     },
     {
-      title: 'Marketplace',
+      title: 'Accounts',
       items: [
-        { href: '/admin/campaigns', label: 'Campaigns', icon: Icons.campaigns, badge: pendingCampaigns },
         { href: '/admin/brands', label: 'Brands', icon: Icons.building },
         { href: '/admin/creators', label: 'Publishers', icon: Icons.users },
-        { href: '/admin/users', label: 'Users', icon: Icons.profile },
-      ],
-    },
-    {
-      title: 'Traffic',
-      items: [
-        { href: '/admin/clicks', label: 'Clicks', icon: Icons.cursor },
-        { href: '/admin/conversions', label: 'Conversions', icon: Icons.check },
-        { href: '/admin/fraud', label: 'Fraud console', icon: Icons.shield, badge: openFraud },
       ],
     },
     {
       title: 'Money',
       items: [
-        { href: '/admin/transactions', label: 'Ledger', icon: Icons.receipt },
         { href: '/admin/payouts', label: 'Payouts', icon: Icons.payouts, badge: pendingPayouts },
         { href: '/admin/disputes', label: 'Disputes', icon: Icons.scale, badge: openDisputes },
-        { href: '/admin/reports', label: 'Reports', icon: Icons.analytics },
+        { href: '/admin/transactions', label: 'Ledger', icon: Icons.receipt },
       ],
     },
     {
-      title: 'Platform',
-      items: [
-        { href: '/admin/settings', label: 'Settings', icon: Icons.settings },
-        { href: '/admin/audit', label: 'Audit log', icon: Icons.code },
-      ],
+      items: [{ href: '/admin/settings', label: 'Settings', icon: Icons.settings }],
     },
   ];
 

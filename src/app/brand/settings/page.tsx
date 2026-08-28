@@ -15,11 +15,13 @@ import {
   type DomainView,
   type MemberView,
 } from '@/components/brand/settings-forms';
-import { PageHeader } from '@/components/ui/primitives';
+import { ButtonLink } from '@/components/ui/button';
+import { Card, CardHeader, PageHeader } from '@/components/ui/primitives';
 import { currentCsrfToken } from '@/lib/auth/csrf';
 import { pageBrand } from '@/lib/auth/guards';
 import { brand as branding } from '@/lib/brand';
 import { prisma } from '@/lib/db';
+import { formatDateTime, formatRelative } from '@/lib/format';
 import { verificationRecord } from '@/lib/domains';
 
 export const metadata: Metadata = { title: 'Settings' };
@@ -30,7 +32,7 @@ export default async function BrandSettingsPage() {
   const csrfToken = await currentCsrfToken();
   const isOwner = membershipRole === 'BRAND_OWNER';
 
-  const [members, domains, sessions] = await Promise.all([
+  const [members, domains, sessions, openDisputes] = await Promise.all([
     prisma.brandMember.findMany({
       where: { brandId: brand.id },
       orderBy: { createdAt: 'asc' },
@@ -49,6 +51,9 @@ export default async function BrandSettingsPage() {
       where: { userId: user.id, revokedAt: null, expiresAt: { gt: new Date() } },
       orderBy: { lastSeenAt: 'desc' },
       select: { id: true, userAgent: true, createdAt: true, lastSeenAt: true, expiresAt: true },
+    }),
+    prisma.dispute.count({
+      where: { brandId: brand.id, status: { in: ['OPEN', 'INVESTIGATING'] } },
     }),
   ]);
 
@@ -120,14 +125,37 @@ export default async function BrandSettingsPage() {
               id: session.id,
               current: session.id === sessionId,
               userAgent: session.userAgent,
-              createdAt: session.createdAt.toISOString(),
-              lastSeenAt: session.lastSeenAt.toISOString(),
-              expiresAt: session.expiresAt.toISOString(),
+              lastSeenLabel: formatRelative(session.lastSeenAt),
+              signedInLabel: formatDateTime(session.createdAt),
             }),
           )}
         />
 
         <DataCard />
+
+        <Card>
+          <CardHeader
+            title="Developers"
+            description="API keys for reporting conversions, and webhook endpoints for receiving events."
+            action={
+              <ButtonLink href="/brand/developers" variant="secondary" size="sm">
+                Open
+              </ButtonLink>
+            }
+          />
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Disputes"
+            description="Raise invalid traffic or a duplicate conversion, and answer disputes publishers open about your campaigns."
+            action={
+              <ButtonLink href="/brand/disputes" variant="secondary" size="sm">
+                {openDisputes > 0 ? `${openDisputes} open` : 'Open a dispute'}
+              </ButtonLink>
+            }
+          />
+        </Card>
 
         <CloseAccountCard supportEmail={branding.supportEmail} />
       </div>

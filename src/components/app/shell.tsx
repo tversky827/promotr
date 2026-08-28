@@ -98,7 +98,7 @@ export function AppShell({
 
           <div className="flex items-center gap-2">
             <Link
-              href="/campaigns"
+              href="/"
               className="hidden text-sm text-fg-muted transition-colors hover:text-fg sm:block"
             >
               Marketplace

@@ -21,6 +21,8 @@ export default async function BrandLayout({ children }: { children: React.ReactN
 
   const isOwner = membershipRole === 'BRAND_OWNER' || user.role === 'ADMIN';
 
+  // Five entries. Reports folded into the overview, and developers and
+  // disputes are reached from settings — a brand does not visit either weekly.
   const sections: NavSection[] = [
     {
       items: [
@@ -32,20 +34,8 @@ export default async function BrandLayout({ children }: { children: React.ReactN
           icon: Icons.users,
           badge: pendingApplications,
         },
-        { href: '/brand/reports', label: 'Reports', icon: Icons.analytics },
-      ],
-    },
-    {
-      title: 'Account',
-      items: [
-        ...(isOwner
-          ? [{ href: '/brand/billing', label: 'Billing', icon: Icons.receipt }]
-          : []),
-        { href: '/brand/disputes', label: 'Disputes', icon: Icons.scale, badge: openDisputes },
-        ...(isOwner
-          ? [{ href: '/brand/developers', label: 'Developers', icon: Icons.code }]
-          : []),
-        { href: '/brand/settings', label: 'Settings', icon: Icons.settings },
+        ...(isOwner ? [{ href: '/brand/billing', label: 'Billing', icon: Icons.receipt }] : []),
+        { href: '/brand/settings', label: 'Settings', icon: Icons.settings, badge: openDisputes },
       ],
     },
   ];

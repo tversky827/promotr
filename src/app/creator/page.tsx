@@ -1,13 +1,13 @@
-import Link from 'next/link';
 import type { Metadata } from 'next';
 
 import { AreaChart, RankedBars } from '@/components/charts';
+import { LinksTable } from '@/components/creator/links-table';
 import { ButtonLink } from '@/components/ui/button';
 import { DateRangePicker } from '@/components/ui/date-range';
-import { Card, CardHeader, EmptyState, Badge } from '@/components/ui/primitives';
+import { Card, CardHeader, EmptyState } from '@/components/ui/primitives';
 import { Stat, StatGrid } from '@/components/ui/stat';
-import { TBody, TD, TH, THead, TR, Table, TableEmpty, TableWrap } from '@/components/ui/table';
 import { balanceSummary } from '@/lib/billing/earnings';
+import { currentCsrfToken } from '@/lib/auth/csrf';
 import { pageCreator } from '@/lib/auth/guards';
 import { prisma } from '@/lib/db';
 import {
@@ -26,8 +26,6 @@ import {
   formatNumber,
   formatPercent,
   formatRelative,
-  statusTone,
-  humanize,
 } from '@/lib/format';
 import { formatMicros, formatUnitPrice } from '@/lib/money';
 
@@ -45,19 +43,14 @@ export default async function CreatorDashboard({
   const range = presetRange(rangeKey);
   const granularity = granularityFor(range);
 
-  const [balance, metrics, series, sources, topCampaigns, recentEarnings, freshAt, linkCount] =
+  const csrfToken = await currentCsrfToken();
+
+  const [balance, metrics, series, sources, freshAt, linkCount] =
     await Promise.all([
       balanceSummary(creator.id),
       totals({ creatorId: creator.id }, range).then(derive),
       timeSeries({ creatorId: creator.id }, range, granularity),
       breakdown({ creatorId: creator.id }, range, 'referrerHost', 6),
-      topCampaignsFor(creator.id, range),
-      prisma.earning.findMany({
-        where: { creatorId: creator.id },
-        orderBy: { createdAt: 'desc' },
-        take: 8,
-        include: { campaign: { select: { name: true, slug: true } } },
-      }),
       lastRollupAt(),
       prisma.trackingLink.count({ where: { creatorId: creator.id, active: true } }),
     ]);
@@ -77,12 +70,7 @@ export default async function CreatorDashboard({
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <DateRangePicker current={rangeKey} />
-          <ButtonLink href="/campaigns" size="sm">
-            Find campaigns
-          </ButtonLink>
-        </div>
+        <DateRangePicker current={rangeKey} />
       </div>
 
       {/* Balance first: it is the number publishers open the dashboard for. */}
@@ -179,107 +167,8 @@ export default async function CreatorDashboard({
         </Card>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Card padded={false}>
-          <div className="p-5">
-            <CardHeader
-              title="Your top campaigns"
-              action={
-                <Link href="/creator/earnings" className="text-sm text-primary hover:underline">
-                  All earnings
-                </Link>
-              }
-            />
-          </div>
-          <TableWrap className="border-t border-border">
-            <Table>
-              <THead>
-                <TR>
-                  <TH>Campaign</TH>
-                  <TH align="right">Clicks</TH>
-                  <TH align="right">Conv.</TH>
-                  <TH align="right">Earned</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {topCampaigns.length === 0 ? (
-                  <TableEmpty colSpan={4} message="No campaign activity in this period yet." />
-                ) : (
-                  topCampaigns.map((campaign) => (
-                    <TR key={campaign.campaignId}>
-                      <TD>
-                        <Link
-                          href={`/campaigns/${campaign.slug}`}
-                          className="font-medium text-fg hover:text-primary"
-                        >
-                          {campaign.name}
-                        </Link>
-                      </TD>
-                      <TD align="right" numeric>
-                        {formatNumber(campaign.clicks)}
-                      </TD>
-                      <TD align="right" numeric>
-                        {formatNumber(campaign.conversions)}
-                      </TD>
-                      <TD align="right" numeric className="font-medium">
-                        {formatMicros(campaign.netMicros)}
-                      </TD>
-                    </TR>
-                  ))
-                )}
-              </TBody>
-            </Table>
-          </TableWrap>
-        </Card>
-
-        <Card padded={false}>
-          <div className="p-5">
-            <CardHeader
-              title="Recent earnings"
-              action={
-                <Link href="/creator/earnings" className="text-sm text-primary hover:underline">
-                  View ledger
-                </Link>
-              }
-            />
-          </div>
-          <TableWrap className="border-t border-border">
-            <Table>
-              <THead>
-                <TR>
-                  <TH>Campaign</TH>
-                  <TH>Status</TH>
-                  <TH align="right">Amount</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {recentEarnings.length === 0 ? (
-                  <TableEmpty
-                    colSpan={3}
-                    message="Nothing yet. Grab a campaign link to get started."
-                  />
-                ) : (
-                  recentEarnings.map((earning) => (
-                    <TR key={earning.id}>
-                      <TD>
-                        <div className="font-medium text-fg">{earning.campaign.name}</div>
-                        <div className="text-xs text-fg-subtle">
-                          {humanize(earning.eventType)} · {formatRelative(earning.createdAt)}
-                        </div>
-                      </TD>
-                      <TD>
-                        <Badge tone={statusTone(earning.status)}>{humanize(earning.status)}</Badge>
-                      </TD>
-                      <TD align="right" numeric className="font-medium">
-                        {formatMicros(earning.netMicros)}
-                      </TD>
-                    </TR>
-                  ))
-                )}
-              </TBody>
-            </Table>
-          </TableWrap>
-        </Card>
+      <div className="mt-4">
+        <LinksTable creatorId={creator.id} csrfToken={csrfToken} />
       </div>
 
       {metrics.clicks === 0 && balance.lifetimeMicros === 0n ? (
@@ -287,46 +176,9 @@ export default async function CreatorDashboard({
           className="mt-6"
           title="You have not sent any traffic yet"
           description="Find a campaign that fits your audience, take your link, and share it. Earnings appear here as traffic arrives."
-          action={<ButtonLink href="/campaigns">Browse campaigns</ButtonLink>}
+          action={<ButtonLink href="/">Browse campaigns</ButtonLink>}
         />
       ) : null}
     </>
   );
-}
-
-async function topCampaignsFor(creatorId: string, range: { from: Date; to: Date }) {
-  const rows = await prisma.$queryRaw<
-    Array<{
-      campaign_id: string;
-      name: string;
-      slug: string;
-      clicks: bigint;
-      conversions: bigint;
-      net: bigint;
-    }>
-  >`
-    SELECT
-      s."campaignId" AS campaign_id,
-      c.name,
-      c.slug,
-      COALESCE(SUM(s."qualifiedClicks"), 0)::bigint AS clicks,
-      COALESCE(SUM(s.conversions), 0)::bigint AS conversions,
-      COALESCE(SUM(s."netMicros"), 0)::bigint AS net
-    FROM "stat_hourly" s
-    JOIN "campaigns" c ON c.id = s."campaignId"
-    WHERE s."creatorId" = ${creatorId}::uuid
-      AND s.bucket >= ${range.from} AND s.bucket < ${range.to}
-    GROUP BY 1, 2, 3
-    ORDER BY net DESC
-    LIMIT 6
-  `;
-
-  return rows.map((row) => ({
-    campaignId: row.campaign_id,
-    name: row.name,
-    slug: row.slug,
-    clicks: Number(row.clicks),
-    conversions: Number(row.conversions),
-    netMicros: row.net,
-  }));
 }

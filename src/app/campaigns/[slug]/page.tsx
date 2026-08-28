@@ -97,7 +97,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
       <nav aria-label="Breadcrumb" className="mb-5">
         <ol className="flex items-center gap-1.5 text-xs text-fg-subtle">
           <li>
-            <Link href="/campaigns" className="transition-colors hover:text-fg">
+            <Link href="/" className="transition-colors hover:text-fg">
               Campaigns
             </Link>
           </li>

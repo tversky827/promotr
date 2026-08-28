@@ -9,7 +9,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <header className="border-b border-border">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Logo />
-          <Link href="/campaigns" className="text-sm text-fg-muted transition-colors hover:text-fg">
+          <Link href="/" className="text-sm text-fg-muted transition-colors hover:text-fg">
             Browse campaigns
           </Link>
         </div>

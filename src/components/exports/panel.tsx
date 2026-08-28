@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 
 import { ActionForm, FormBody, SubmitButton, useFieldError } from '@/components/ui/action-form';
 import { Input, Select } from '@/components/ui/form';
-import { Badge, Card, CardHeader, EmptyState } from '@/components/ui/primitives';
+import { Badge, Card, CardHeader } from '@/components/ui/primitives';
 import { formatDateTime, formatNumber } from '@/lib/format';
 import type { ActionResult } from '@/server/actions/shared';
 
@@ -81,22 +81,17 @@ export function ExportsPanel({
         </ActionForm>
       </Card>
 
-      <Card padded={false}>
-        <div className="p-5">
-          <CardHeader
-            title="Recent exports"
-            description="Files are available for seven days, then removed."
-          />
-        </div>
-
-        {jobs.length === 0 ? (
-          <div className="px-5 pb-5">
-            <EmptyState
-              title="No exports yet"
-              description="Start one above and it will appear here when it is ready."
+      {/* The list appears once there is something in it. An empty box below
+          the form is furniture, not information. */}
+      {jobs.length === 0 ? null : (
+        <Card padded={false}>
+          <div className="p-5">
+            <CardHeader
+              title="Recent exports"
+              description="Files are available for seven days, then removed."
             />
           </div>
-        ) : (
+
           <div className="scroll-x border-t border-border">
             <table className="w-full text-left text-sm">
               <thead className="bg-surface-sunken">
@@ -146,8 +141,8 @@ export function ExportsPanel({
               </tbody>
             </table>
           </div>
-        )}
-      </Card>
+        </Card>
+      )}
     </div>
   );
 }

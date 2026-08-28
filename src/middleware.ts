@@ -18,8 +18,32 @@ import { SESSION_COOKIE } from '@/lib/auth/constants';
 
 const PROTECTED_PREFIXES = ['/brand', '/creator', '/admin', '/onboarding', '/notifications'];
 
+/**
+ * Screens that were merged into another one.
+ *
+ * Redirected here rather than from a page component: a component redirect runs
+ * after the document shell has been flushed, so it arrives as a 200 carrying a
+ * client-side hop. For a route that has genuinely moved, a real 308 is what
+ * search engines and anything already linking to it need to see.
+ */
+const MERGED: Record<string, string> = {
+  '/campaigns': '/',
+  '/creator/links': '/creator',
+  '/creator/payouts': '/creator/earnings',
+  '/creator/exports': '/creator/earnings',
+  '/creator/profile': '/creator/settings',
+  '/brand/reports': '/brand',
+};
+
 export function middleware(request: NextRequest): NextResponse {
   const { pathname, search } = request.nextUrl;
+
+  const moved = MERGED[pathname];
+  if (moved) {
+    const target = new URL(moved, request.url);
+    target.search = search;
+    return NextResponse.redirect(target, 308);
+  }
 
   if (!PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
     return NextResponse.next();
@@ -38,6 +62,7 @@ export function middleware(request: NextRequest): NextResponse {
 
 export const config = {
   matcher: [
+    '/campaigns',
     '/brand/:path*',
     '/creator/:path*',
     '/admin/:path*',

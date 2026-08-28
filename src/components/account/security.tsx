@@ -6,7 +6,6 @@ import { ActionForm, FormBody, SubmitButton, useFieldError } from '@/components/
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/form';
 import { Alert, Badge, Card, CardHeader } from '@/components/ui/primitives';
-import { formatDateTime, formatRelative } from '@/lib/format';
 import {
   beginMfaEnrollment,
   changePassword,
@@ -31,9 +30,14 @@ export interface SessionView {
   id: string;
   current: boolean;
   userAgent: string | null;
-  createdAt: string;
-  lastSeenAt: string;
-  expiresAt: string;
+  /**
+   * Pre-formatted on the server. "Last active 4 seconds ago" computed during
+   * server rendering and again during hydration a moment later produces two
+   * different strings, and React treats that as a hydration failure — so the
+   * time is turned into text exactly once, before it crosses the boundary.
+   */
+  lastSeenLabel: string;
+  signedInLabel: string;
 }
 
 export function PasswordCard({
@@ -288,8 +292,7 @@ export function SessionsCard({
                 ) : null}
               </p>
               <p className="mt-0.5 text-xs text-fg-subtle">
-                Last active {formatRelative(new Date(session.lastSeenAt))} · signed in{' '}
-                {formatDateTime(new Date(session.createdAt))}
+                Last active {session.lastSeenLabel} · signed in {session.signedInLabel}
               </p>
             </div>
             {!session.current ? (

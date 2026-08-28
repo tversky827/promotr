@@ -239,7 +239,7 @@ export function UserMenu({
               Account settings
             </Link>
             <Link
-              href="/campaigns"
+              href="/"
               role="menuitem"
               className="block rounded px-2.5 py-1.5 text-sm text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg"
             >

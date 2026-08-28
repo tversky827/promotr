@@ -59,6 +59,26 @@ the correct behaviour and punishing it produces double-charging.
 **Application pages** are server components that query the database directly.
 Dashboards read `stat_hourly`, never raw click partitions.
 
+## Information architecture
+
+The marketplace is the root route. There is no marketing page in front of it:
+the product is a wall of campaigns a publisher can promote, and that is what a
+visitor sees before signing up for anything.
+
+Behind sign-in, each role gets as few screens as the work allows.
+
+| Role | Screens |
+| --- | --- |
+| Publisher | Browse, Overview (links and performance), Earnings (balance, withdrawals, ledger, exports), Settings (profile, tax, security) |
+| Brand | Overview (performance and exports), Campaigns, Publishers, Billing, Settings (details, team, domains, keys, webhooks) |
+| Admin | Overview, Campaigns, Fraud, Brands, Publishers, Payouts, Disputes, Ledger, Settings |
+
+Screens that were merged keep their old URLs as 308 redirects in middleware, so
+links publishers have already shared still work. Pages an operator visits during
+an investigation rather than daily — the click and conversion logs, users,
+reports, system health, the audit log — are reached from the admin overview
+instead of holding a permanent place in the sidebar.
+
 ## Data flow of one earning
 
 1. A click arrives; the redirect resolves the link and answers.

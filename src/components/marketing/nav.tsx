@@ -35,26 +35,10 @@ export function MarketingNav({ signedIn, homePath }: { signedIn: boolean; homePa
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-bg/85 backdrop-blur-md">
       <nav
-        className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6"
+        className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6"
         aria-label="Main"
       >
-        <div className="flex items-center gap-7">
-          <Logo />
-          <div className="hidden items-center gap-6 md:flex">
-            <Link href="/campaigns" className="text-base text-fg-muted transition-colors hover:text-fg">
-              Browse campaigns
-            </Link>
-            <Link href="/#how-it-works" className="text-base text-fg-muted transition-colors hover:text-fg">
-              How it works
-            </Link>
-            <Link href="/#pricing" className="text-base text-fg-muted transition-colors hover:text-fg">
-              Pricing
-            </Link>
-            <Link href="/docs/api" className="text-base text-fg-muted transition-colors hover:text-fg">
-              Developers
-            </Link>
-          </div>
-        </div>
+        <Logo />
 
         <div className="flex items-center gap-2">
           {signedIn ? (
@@ -78,88 +62,34 @@ export function MarketingNav({ signedIn, homePath }: { signedIn: boolean; homePa
 }
 
 export function MarketingFooter() {
-  const groups: Array<{ title: string; links: Array<{ label: string; href: string }> }> = [
-    {
-      title: 'Product',
-      links: [
-        { label: 'Browse campaigns', href: '/campaigns' },
-        { label: 'For creators', href: '/#creators' },
-        { label: 'For brands', href: '/#brands' },
-        { label: 'Pricing', href: '/#pricing' },
-      ],
-    },
-    {
-      title: 'Developers',
-      links: [
-        { label: 'API reference', href: '/docs/api' },
-        { label: 'Conversion tracking', href: '/docs/tracking' },
-        { label: 'Webhooks', href: '/docs/webhooks' },
-        { label: 'Status', href: '/status' },
-      ],
-    },
-    {
-      title: 'Trust',
-      links: [
-        { label: 'Fraud protection', href: '/#fraud' },
-        { label: 'Security', href: '/legal/security' },
-        { label: 'Acceptable use', href: '/legal/acceptable-use' },
-        { label: 'Campaign rules', href: '/legal/campaign-rules' },
-      ],
-    },
-    {
-      title: 'Legal',
-      links: [
-        { label: 'Terms of service', href: '/legal/terms' },
-        { label: 'Privacy policy', href: '/legal/privacy' },
-        { label: 'Cookie policy', href: '/legal/cookies' },
-        { label: 'Creator agreement', href: '/legal/creator-agreement' },
-        { label: 'Brand agreement', href: '/legal/brand-agreement' },
-      ],
-    },
+  const links = [
+    { label: 'Terms', href: '/legal/terms' },
+    { label: 'Privacy', href: '/legal/privacy' },
+    { label: 'Security', href: '/legal/security' },
+    { label: 'Acceptable use', href: '/legal/acceptable-use' },
+    { label: 'API', href: '/docs/api' },
+    { label: 'Status', href: '/status' },
   ];
 
   return (
-    <footer className="border-t border-border bg-surface-sunken/50">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="lg:col-span-1">
-            <Logo />
-            <p className="mt-3 max-w-xs text-sm text-fg-muted text-pretty">
-              A performance marketplace connecting brands with creators and publishers who drive
-              measurable results.
-            </p>
-          </div>
-
-          {groups.map((group) => (
-            <div key={group.title}>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">
-                {group.title}
-              </h3>
-              <ul className="mt-3 space-y-2">
-                {group.links.map((link) => (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-fg-muted transition-colors hover:text-fg"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
+    <footer className="mt-16 border-t border-border">
+      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <p className="text-xs text-fg-subtle">
+          © {new Date().getFullYear()} {brand.legalName}. {brand.name} is an advertising platform,
+          not an investment or a guarantee of income.
+        </p>
+        <ul className="flex flex-wrap gap-x-5 gap-y-2">
+          {links.map((link) => (
+            <li key={link.href}>
+              <Link
+                href={link.href}
+                className="text-xs text-fg-subtle transition-colors hover:text-fg-muted"
+              >
+                {link.label}
+              </Link>
+            </li>
           ))}
-        </div>
-
-        <div className="mt-10 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-fg-subtle">
-            © {new Date().getFullYear()} {brand.legalName}. All rights reserved.
-          </p>
-          <p className="text-xs text-fg-subtle">
-            {brand.name} is an advertising technology platform. It is not a bank, a broker, or an
-            investment product, and it does not offer financial or tax advice.
-          </p>
-        </div>
+        </ul>
       </div>
     </footer>
   );

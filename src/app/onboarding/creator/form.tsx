@@ -20,7 +20,7 @@ export function CreatorOnboardingForm({
   const [handle, setHandle] = useState(defaultHandle || suggestHandle(defaultName));
 
   return (
-    <ActionForm action={createCreatorProfile} csrfToken={csrfToken} redirectTo="/campaigns">
+    <ActionForm action={createCreatorProfile} csrfToken={csrfToken} redirectTo="/">
       <FormBody className="space-y-6">
         <Card className="space-y-4">
           <DisplayNameField

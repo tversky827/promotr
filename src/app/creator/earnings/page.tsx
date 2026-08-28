@@ -2,16 +2,20 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 
 import { ExportButton } from '@/components/creator/export-button';
+import { PayoutPanel } from '@/components/creator/payout-panel';
 import { Pagination } from '@/components/ui/pagination';
-import { Badge, Card, EmptyState, PageHeader } from '@/components/ui/primitives';
+import { Badge, Card, CardHeader, EmptyState, PageHeader } from '@/components/ui/primitives';
 import { Stat, StatGrid } from '@/components/ui/stat';
 import { TBody, TD, TH, THead, TR, Table, TableWrap } from '@/components/ui/table';
 import { balanceSummary } from '@/lib/billing/earnings';
+import { checkPayoutEligibility } from '@/lib/billing/payouts';
 import { currentCsrfToken } from '@/lib/auth/csrf';
 import { pageCreator } from '@/lib/auth/guards';
 import { prisma } from '@/lib/db';
 import { formatDateTime, formatRelative, humanize, statusTone } from '@/lib/format';
 import { formatMicros } from '@/lib/money';
+import { getSettings } from '@/lib/settings';
+import { stripeConfigured } from '@/lib/stripe';
 
 import type { EarningStatus, Prisma } from '@prisma/client';
 
@@ -46,7 +50,8 @@ export default async function CreatorEarningsPage({
     ...(params.campaign ? { campaignId: params.campaign } : {}),
   };
 
-  const [balance, earnings, total, statusCounts, campaigns] = await Promise.all([
+  const [balance, earnings, total, statusCounts, campaigns, eligibility, payouts, settings] =
+    await Promise.all([
     balanceSummary(creator.id),
     prisma.earning.findMany({
       where,
@@ -73,6 +78,14 @@ export default async function CreatorEarningsPage({
         take: 50,
       })
       .catch(() => []),
+    checkPayoutEligibility(creator.id),
+    prisma.payout.findMany({
+      where: { creatorId: creator.id },
+      orderBy: { requestedAt: 'desc' },
+      take: 10,
+      include: { _count: { select: { earnings: true } } },
+    }),
+    getSettings(),
   ]);
 
   const counts = new Map(statusCounts.map((row) => [row.status, row._count]));
@@ -99,6 +112,24 @@ export default async function CreatorEarningsPage({
         />
         <Stat label="Paid" value={formatMicros(balance.paidMicros)} />
       </StatGrid>
+
+      <div className="mb-6 grid items-start gap-4 lg:grid-cols-[1fr_340px]">
+        <PayoutHistory payouts={payouts} minimumMicros={settings.minimumPayoutMicros} />
+
+        <PayoutPanel
+          csrfToken={csrfToken}
+          availableMicros={balance.availableMicros.toString()}
+          minimumMicros={settings.minimumPayoutMicros}
+          eligible={eligibility.eligible}
+          blockReason={eligibility.eligible ? null : eligibility.reason}
+          blockCode={eligibility.eligible ? null : eligibility.code}
+          stripeConfigured={stripeConfigured()}
+          payoutsEnabled={creator.stripePayoutsEnabled}
+          hasConnectAccount={Boolean(creator.stripeAccountId)}
+          requirementsDue={creator.stripeRequirementsDue}
+          taxFormStatus={creator.taxFormStatus}
+        />
+      </div>
 
       <div className="scroll-x mb-4 flex gap-1.5">
         <StatusTab label="All" href="/creator/earnings" active={!statusFilter} />
@@ -240,6 +271,83 @@ export default async function CreatorEarningsPage({
         and an administrator will review it.
       </p>
     </>
+  );
+}
+
+/** Recent withdrawals. Compact by design — the ledger below is the detail. */
+function PayoutHistory({
+  payouts,
+  minimumMicros,
+}: {
+  payouts: Array<{
+    id: string;
+    status: string;
+    requestedAt: Date;
+    paidAt: Date | null;
+    failureMessage: string | null;
+    holdReason: string | null;
+    amountMicros: bigint;
+    _count: { earnings: number };
+  }>;
+  minimumMicros: string;
+}) {
+  if (payouts.length === 0) {
+    return (
+      <Card>
+        <CardHeader
+          title="Withdrawals"
+          description={`Your balance becomes withdrawable once it clears ${formatMicros(BigInt(minimumMicros))}.`}
+        />
+      </Card>
+    );
+  }
+
+  return (
+    <Card padded={false}>
+      <div className="p-5">
+        <CardHeader title="Withdrawals" />
+      </div>
+      <TableWrap className="border-t border-border">
+        <Table>
+          <THead>
+            <TR>
+              <TH>Requested</TH>
+              <TH>Status</TH>
+              <TH align="right">Amount</TH>
+            </TR>
+          </THead>
+          <TBody>
+            {payouts.map((payout) => (
+              <TR key={payout.id}>
+                <TD>
+                  <div className="text-fg">{formatRelative(payout.requestedAt)}</div>
+                  <div className="text-2xs text-fg-subtle">
+                    {payout._count.earnings} earning{payout._count.earnings === 1 ? '' : 's'}
+                  </div>
+                </TD>
+                <TD>
+                  <Badge tone={statusTone(payout.status)}>{humanize(payout.status)}</Badge>
+                  {/* A failure always says why, and that the money came back. */}
+                  {payout.failureMessage ? (
+                    <div className="mt-1 max-w-xs text-2xs text-danger text-pretty">
+                      {payout.failureMessage} Your balance was returned in full.
+                    </div>
+                  ) : null}
+                  {payout.holdReason ? (
+                    <div className="mt-1 max-w-xs text-2xs text-warning text-pretty">
+                      {payout.holdReason}
+                    </div>
+                  ) : null}
+                </TD>
+                <TD align="right" numeric className="font-medium">
+                  {formatMicros(payout.amountMicros)}
+                </TD>
+              </TR>
+            ))}
+          </TBody>
+        </Table>
+      </TableWrap>
+    </Card>
   );
 }
 

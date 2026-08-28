@@ -2,6 +2,9 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 
 import { AreaChart, Funnel, RankedBars } from '@/components/charts';
+import { ExportsPanel } from '@/components/exports/panel';
+import { currentCsrfToken } from '@/lib/auth/csrf';
+import { requestBrandExport } from '@/server/actions/campaigns';
 import { ButtonLink } from '@/components/ui/button';
 import { DateRangePicker } from '@/components/ui/date-range';
 import { Badge, Card, CardHeader, EmptyState } from '@/components/ui/primitives';
@@ -42,7 +45,8 @@ export default async function BrandDashboard({
 }: {
   searchParams: Promise<{ range?: string }>;
 }) {
-  const { brand } = await pageBrand();
+  const { brand, user } = await pageBrand();
+  const csrfToken = await currentCsrfToken();
   const { range: rangeKey = '30d' } = await searchParams;
 
   const range = presetRange(rangeKey);
@@ -59,6 +63,7 @@ export default async function BrandDashboard({
     depositBalance,
     freshAt,
     committed,
+    exportJobs,
   ] = await Promise.all([
     totals(scope, range).then(derive),
     timeSeries(scope, range, granularity),
@@ -76,6 +81,11 @@ export default async function BrandDashboard({
     prisma.campaignBudget.aggregate({
       where: { campaign: { brandId: brand.id } },
       _sum: { fundedMicros: true, reservedMicros: true, spentMicros: true },
+    }),
+    prisma.exportJob.findMany({
+      where: { userId: user.id, scopeKind: 'brand' },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
     }),
   ]);
 
@@ -349,6 +359,35 @@ export default async function BrandDashboard({
           </Card>
         </>
       )}
+
+      {/* Exports live with the numbers they export, rather than on a reports
+          page that duplicated this one. */}
+      <div className="mt-6">
+        <ExportsPanel
+          csrfToken={csrfToken}
+          action={requestBrandExport}
+          campaigns={campaigns.map((campaign) => ({ id: campaign.id, name: campaign.name }))}
+          jobs={exportJobs.map((job) => ({
+            id: job.id,
+            kind: job.kind,
+            status: job.status,
+            rowCount: job.rowCount,
+            fileUrl: job.fileUrl,
+            errorMessage: job.errorMessage,
+            createdAt: job.createdAt.toISOString(),
+            expiresAt: job.expiresAt?.toISOString() ?? null,
+          }))}
+          kinds={[
+            { value: 'clicks', label: 'Clicks' },
+            { value: 'conversions', label: 'Conversions' },
+            { value: 'earnings', label: 'Publisher earnings' },
+            { value: 'creators', label: 'Publishers' },
+            { value: 'spend', label: 'Spend' },
+          ]}
+          title="Export data"
+          description="Every row we hold for your campaigns, including the eligibility decision on each click, so you can reconcile our billing against your own analytics."
+        />
+      </div>
     </>
   );
 }

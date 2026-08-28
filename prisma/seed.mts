@@ -556,14 +556,28 @@ async function seedTraffic(
     // Earnings for CPC campaigns, through the real accrual path so the ledger
     // and budgets stay consistent.
     if (campaign.payoutModel === 'CPC') {
-      const billableClicks = Math.floor(total * 0.9);
+      const billableClicks = Math.min(Math.floor(total * 0.9), 60);
       const breakdown = grossFromNet(campaign.payoutMicros, {
         feeBps: 2000,
         flatMicros: 0n,
         source: 'platform',
       });
 
-      for (let i = 0; i < Math.min(billableClicks, 60); i += 1) {
+      // Each earning points at the click that produced it, exactly as the live
+      // redirect path records it — that link is what per-link earnings read.
+      const billableIds = (
+        await prisma.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM "clicks"
+          WHERE "linkId" = ${link.id}::uuid AND billable = true
+          -- Sampled at random rather than newest-first: earnings inherit the
+          -- date of the click they came from, so taking the most recent ones
+          -- would pile a month of earnings onto the last two days.
+          ORDER BY random()
+          LIMIT ${Math.max(billableClicks, 1)}
+        `
+      ).map((row) => row.id);
+
+      for (let i = 0; i < billableClicks; i += 1) {
         const result = await accrue({
           creatorId,
           campaignId: campaign.id,
@@ -572,6 +586,7 @@ async function seedTraffic(
           feeMicros: breakdown.feeMicros,
           netMicros: breakdown.netMicros,
           idempotencyKey: `seed:click:${link.id}:${i}`,
+          clickId: billableIds[i] ?? null,
         });
         if (result.ok) earningCount += 1;
         else break; // Budget exhausted — realistic, and worth showing.
@@ -581,7 +596,21 @@ async function seedTraffic(
     // Conversions for the other models.
     if (campaign.payoutModel !== 'CPC' && campaign.payoutModel !== 'CPM') {
       const conversions = Math.floor(total * (0.01 + Math.random() * 0.03));
+
+      // Real conversions are attributed to a specific click, and the dashboards
+      // read that attribution. Seeded ones borrow ids from the clicks just
+      // inserted for this link so the figures add up the same way.
+      const clickIds = (
+        await prisma.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM "clicks"
+          WHERE "linkId" = ${link.id}::uuid
+          ORDER BY random()
+          LIMIT ${Math.max(conversions, 1)}
+        `
+      ).map((row) => row.id);
+
       for (let i = 0; i < conversions; i += 1) {
+        const clickId = clickIds[i] ?? null;
         const revenue = parseAmount(String(40 + Math.floor(Math.random() * 200)));
         const payout =
           campaign.payoutModel === 'REVSHARE'
@@ -598,6 +627,7 @@ async function seedTraffic(
             campaignId: campaign.id,
             creatorId,
             linkId: link.id,
+            clickId,
             externalId: `seed-order-${link.id.slice(0, 8)}-${i}`,
             idempotencyKey: `seed:conv:${link.id}:${i}`,
             eventType: 'SALE',
@@ -619,6 +649,10 @@ async function seedTraffic(
           netMicros: breakdown.netMicros,
           idempotencyKey: `seed:convearn:${link.id}:${i}`,
           conversionId,
+          // The real conversion path records the click an earning came from;
+          // seeded data has to as well, or the per-link figures on a publisher's
+          // dashboard read zero against links that plainly earned.
+          clickId,
         });
         if (result.ok) earningCount += 1;
         conversionCount += 1;
@@ -635,6 +669,25 @@ async function seedTraffic(
 
 /** Builds the hourly rollups so dashboards are populated immediately. */
 async function seedRollups(): Promise<void> {
+  // Earnings accrue through the real ledger path, which stamps them with the
+  // moment they were posted — so every seeded earning would otherwise read
+  // "a minute ago" and every chart would be one spike at the right edge. The
+  // rows are dated to the click or conversion that produced them, which is what
+  // a real month of activity looks like. Ledger transactions keep their true
+  // timestamps: those are the append-only record and are not touched.
+  await prisma.$executeRaw`
+    UPDATE "earnings" e
+    SET "createdAt" = c."createdAt"
+    FROM "clicks" c
+    WHERE c.id = e."clickId"
+  `;
+  await prisma.$executeRaw`
+    UPDATE "earnings" e
+    SET "createdAt" = v."createdAt"
+    FROM "conversions" v
+    WHERE v.id = e."conversionId" AND e."clickId" IS NULL
+  `;
+
   const { backfill } = await import('../src/lib/analytics/rollup');
   const rows = await backfill(new Date(Date.now() - 31 * 86_400_000), new Date());
   console.log(`  ${rows} rollup rows built`);

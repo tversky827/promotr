@@ -331,6 +331,31 @@ export default async function AdminDashboard({
         </Card>
       </div>
 
+      {/* The investigation tools. They are not daily work, so they are reached
+          from here rather than sitting permanently in the sidebar. */}
+      <Card className="mt-6">
+        <CardHeader
+          title="Tools"
+          description="Everything else an operator needs, when a case sends them there."
+        />
+        <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+          {[
+            { href: '/admin/clicks', label: 'Click log' },
+            { href: '/admin/conversions', label: 'Conversion log' },
+            { href: '/admin/users', label: 'Users' },
+            { href: '/admin/reports', label: 'Reports' },
+            { href: '/admin/system', label: 'System health' },
+            { href: '/admin/audit', label: 'Audit log' },
+          ].map((tool) => (
+            <li key={tool.href}>
+              <Link href={tool.href} className="text-sm text-primary hover:underline">
+                {tool.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
       <p className="mt-6 text-xs text-fg-subtle">
         Ledger status:{' '}
         <Badge tone={ledgerBalance.balanced ? 'success' : 'danger'}>
