@@ -263,7 +263,7 @@ export default async function BrandDashboard({
           </div>
 
           <div className="mb-4 grid gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
+            <Card className="min-w-0 lg:col-span-2">
               <CardHeader
                 title="Spend and conversions"
                 description={`${formatDate(range.from)} – ${formatDate(range.to)}`}

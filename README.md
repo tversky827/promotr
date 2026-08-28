@@ -96,7 +96,31 @@ not configured rather than pretending to work. See
 | `npm run db:migrate` | Apply migrations in development |
 | `npm run db:deploy` | Apply migrations in production |
 | `npm run db:seed` | Development seed data |
+| `npm run db:seed:demo` | The Audicents walkthrough dataset (see below) |
 | `npm run db:reset` | Drop, re-migrate and re-seed |
+
+## Demo mode
+
+Set `DEMO_MODE=true` and run `npm run db:seed:demo` to load the walkthrough: nine
+fictional brands, fourteen live campaigns, one demo publisher and one demo brand
+with three months of history behind them. A bar appears at the top of every page
+with a `CREATOR` / `BRAND` switch, controls that simulate traffic, and a
+presentation toggle that hides exports and secondary panels.
+
+Everything on those screens is the real product. The switch opens a real session;
+the dashboards read the real rollups; simulated clicks go through link
+resolution, fraud scoring and accrual, and can be refused by a campaign that has
+run out of budget. What a demo account cannot do is move real money — adding
+funds and connecting a payout account both refuse outright, and a demo
+withdrawal settles over an internal rail with `method = 'demo'` recorded on the
+payout.
+
+Because the switcher hands out a session without a password, `DEMO_MODE` is off
+unless set, and belongs only on a deployment holding no real accounts.
+
+The figures are chosen but not typed in: `prisma/demo-fixtures.mts` records
+events, every total is derived from them, and the seed asserts the totals
+reconcile before it writes anything.
 
 ## Documentation
 

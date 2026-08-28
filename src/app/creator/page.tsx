@@ -144,7 +144,7 @@ export default async function CreatorDashboard({
       ) : null}
 
       <div className="grid items-start gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card className="min-w-0 lg:col-span-2">
           <CardHeader
             title="Earnings over time"
             description={`${formatDate(range.from)} – ${formatDate(range.to)}`}

@@ -144,7 +144,9 @@ export function DemoSwitcher({
             )
           }
           className={cn(
-            'shrink-0 rounded-full border px-2.5 py-1 text-2xs font-medium transition-colors disabled:opacity-60',
+            // Presenting is a laptop activity; the button is not worth the
+            // width it costs on a phone.
+            'hidden shrink-0 rounded-full border px-2.5 py-1 text-2xs font-medium transition-colors disabled:opacity-60 sm:inline-flex',
             presenting
               ? 'border-accent bg-accent text-bg'
               : 'border-accent/30 text-fg-muted hover:text-fg',
@@ -164,7 +166,7 @@ export function DemoSwitcher({
             }
             className="shrink-0 text-2xs font-medium text-fg-muted underline-offset-2 transition-colors hover:text-fg hover:underline disabled:opacity-60"
           >
-            {busy === 'exit' ? 'Leaving…' : 'Exit demo'}
+            {busy === 'exit' ? 'Leaving…' : <><span className="sm:hidden">Exit</span><span className="hidden sm:inline">Exit demo</span></>}
           </button>
         ) : null}
       </div>
@@ -225,7 +227,7 @@ function SimulateMenu({
         onClick={() => setOpen((value) => !value)}
         className="inline-flex items-center gap-1 rounded-full border border-accent/30 px-2.5 py-1 text-2xs font-medium text-fg-muted transition-colors hover:text-fg disabled:opacity-60"
       >
-        {running ? 'Simulating…' : 'Simulate'}
+        {running ? <><span className="sm:hidden">…</span><span className="hidden sm:inline">Simulating…</span></> : 'Simulate'}
         <svg viewBox="0 0 20 20" className="size-3" fill="none" aria-hidden="true">
           <path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -234,7 +236,7 @@ function SimulateMenu({
       {open ? (
         <div
           role="menu"
-          className="absolute left-0 top-full z-50 mt-1.5 w-72 animate-slide-up rounded-lg border border-border bg-surface-raised p-1 shadow-lg"
+          className="absolute left-0 top-full z-50 mt-1.5 w-[min(18rem,calc(100vw-1.5rem))] animate-slide-up rounded-lg border border-border bg-surface-raised p-1 shadow-lg"
         >
           <MenuItem
             onClick={() => run(onClicks)}

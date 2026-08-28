@@ -299,11 +299,14 @@ function AxisLabels({ data }: { data: SeriesPoint[] }) {
   // Show at most five labels so they never collide on a narrow screen.
   const stride = Math.max(1, Math.ceil(data.length / 5));
   return (
-    <div className="mt-1 flex justify-between text-2xs text-fg-subtle" aria-hidden="true">
+    <div className="mt-1 flex justify-between gap-2 text-2xs text-fg-subtle" aria-hidden="true">
       {data
         .filter((_, i) => i % stride === 0 || i === data.length - 1)
         .map((d, i) => (
-          <span key={`${d.label}-${i}`} className="truncate">
+          // min-w-0 is what lets truncate actually truncate: without it each
+          // label keeps its min-content width and the row pushes the card
+          // wider than the screen.
+          <span key={`${d.label}-${i}`} className="min-w-0 truncate">
             {d.label}
           </span>
         ))}
