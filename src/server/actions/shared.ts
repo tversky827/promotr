@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { assertCsrf, CsrfError } from '@/lib/auth/csrf';
 import { EmailNotConfiguredError } from '@/lib/email/provider';
+import { DemoRestrictionError } from '@/lib/demo/mode';
 import { captureException } from '@/lib/observability/sentry';
 import { RateLimitExceededError } from '@/lib/ratelimit';
 import { AuthenticationError, AuthorizationError } from '@/lib/rbac';
@@ -124,6 +125,11 @@ function translateError(error: unknown): ActionResult<never> {
   // Integration-not-configured errors carry a message already written for the
   // user, and are surfaced rather than swallowed — that is the whole point.
   if (error instanceof StripeNotConfiguredError) {
+    return actionError(error.userMessage, undefined, error.code);
+  }
+  // Same treatment for a demo account reaching a real-money rail: the message
+  // explains the boundary rather than looking like a failure.
+  if (error instanceof DemoRestrictionError) {
     return actionError(error.userMessage, undefined, error.code);
   }
   if (error instanceof EmailNotConfiguredError) {

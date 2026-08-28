@@ -50,7 +50,7 @@ export function AppShell({
   return (
     <div className="min-h-dvh bg-bg">
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-border bg-surface lg:flex">
+      <aside className="fixed bottom-0 left-0 top-[var(--app-top,0px)] z-30 hidden w-60 flex-col border-r border-border bg-surface lg:flex">
         <div className="flex h-14 shrink-0 items-center border-b border-border px-4">
           <Logo />
         </div>
@@ -87,7 +87,7 @@ export function AppShell({
       </aside>
 
       {/* Header */}
-      <header className="sticky top-0 z-20 border-b border-border bg-bg/90 backdrop-blur-md lg:pl-60">
+      <header className="sticky top-[var(--app-top,0px)] z-20 border-b border-border bg-bg/90 backdrop-blur-md lg:pl-60">
         <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
           <div className="flex items-center gap-3 lg:hidden">
             <MobileNav sections={sections} contextLabel={contextLabel} contextName={contextName} />

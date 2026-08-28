@@ -151,6 +151,15 @@ export const env = {
   workerConcurrency: int('WORKER_CONCURRENCY', 5),
   workerPollIntervalMs: int('WORKER_POLL_INTERVAL_MS', 1000),
 
+  /**
+   * Demo mode. Enables the creator/brand role switcher and the simulation
+   * controls, which sign a visitor in as a demo account without a password.
+   * That is only safe on a deployment carrying no real accounts or money, so it
+   * is off unless explicitly turned on, and the money rails refuse demo
+   * accounts regardless (see src/lib/demo/mode.ts).
+   */
+  demoMode: bool('DEMO_MODE', false),
+
   bootstrapAdminEmail: str('BOOTSTRAP_ADMIN_EMAIL', ''),
   bootstrapAdminPassword: str('BOOTSTRAP_ADMIN_PASSWORD', ''),
 } as const;

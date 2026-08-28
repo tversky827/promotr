@@ -6,7 +6,7 @@ import { brand } from '@/lib/brand';
 
 export function MarketingNav({ signedIn, homePath }: { signedIn: boolean; homePath: string }) {
   return (
-    <header className="sticky top-0 z-40 border-b border-border/70 bg-bg/85 backdrop-blur-md">
+    <header className="sticky top-[var(--app-top,0px)] z-40 border-b border-border/70 bg-bg/85 backdrop-blur-md">
       <nav
         className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6"
         aria-label="Main"

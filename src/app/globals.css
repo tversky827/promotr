@@ -92,6 +92,17 @@
     --info-soft: 180 24% 14%;
   }
 
+  /*
+   * How far from the top of the viewport a sticky header must sit. The demo bar
+   * is the only thing that ever claims this space.
+   */
+  :root {
+    --app-top: 0px;
+  }
+  .demo-mode {
+    --app-top: 2.25rem;
+  }
+
   * {
     @apply border-border;
   }

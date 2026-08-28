@@ -3,6 +3,7 @@ import * as budget from '@/lib/billing/budget';
 import { prisma, withSerializableTransaction } from '@/lib/db';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/observability/logger';
+import { assertNotDemo } from '@/lib/demo/mode';
 import { getStripe, microsToStripeAmount, stripeConfigured } from '@/lib/stripe';
 import { splitToCents } from '@/lib/money';
 import { recordAudit } from '@/lib/audit';
@@ -32,6 +33,9 @@ export async function createDeposit(params: {
   actorUserId: string;
   paymentMethodId?: string;
 }): Promise<CreateDepositResult> {
+  const brandRecord = await prisma.brand.findUniqueOrThrow({ where: { id: params.brandId } });
+  assertNotDemo(brandRecord, 'add real funds');
+
   const stripe = getStripe('fund a campaign');
 
   const { cents, remainderMicros } = splitToCents(params.amountMicros);
@@ -44,9 +48,7 @@ export async function createDeposit(params: {
     throw new Error('The minimum funding amount is $0.50');
   }
 
-  const brand = await prisma.brand.findUniqueOrThrow({ where: { id: params.brandId } });
-
-  const customerId = brand.stripeCustomerId ?? (await createCustomer(params.brandId));
+  const customerId = brandRecord.stripeCustomerId ?? (await createCustomer(params.brandId));
 
   const deposit = await prisma.brandDeposit.create({
     data: {
@@ -65,7 +67,7 @@ export async function createDeposit(params: {
       ...(params.paymentMethodId
         ? { payment_method: params.paymentMethodId, confirm: true, off_session: true }
         : { automatic_payment_methods: { enabled: true } }),
-      description: `Campaign funding — ${brand.displayName}`,
+      description: `Campaign funding — ${brandRecord.displayName}`,
       metadata: {
         depositId: deposit.id,
         brandId: params.brandId,

@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import { Manrope } from 'next/font/google';
 
+import { DemoBar } from '@/components/demo/demo-bar';
 import { brand } from '@/lib/brand';
+import { demoReady } from '@/lib/demo/mode';
 
 import './globals.css';
 
@@ -83,9 +85,21 @@ try {
 } catch (e) { document.documentElement.classList.add('dark'); }
 `.trim();
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  /*
+   * The demo bar is sticky and sits above everything, so the sticky headers
+   * underneath it need to know how tall it is. The `demo-mode` class sets
+   * --app-top; without it the headers fall back to 0px and nothing about the
+   * layout changes. demoReady() short-circuits when DEMO_MODE is off, so a
+   * normal deployment does not query for this on every request.
+   */
+  const showDemoBar = await demoReady();
   return (
-    <html lang="en" className={sans.variable} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${sans.variable}${showDemoBar ? ' demo-mode' : ''}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         {brand.primaryHslOverride ? (
@@ -97,6 +111,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         ) : null}
       </head>
       <body>
+        {showDemoBar ? <DemoBar /> : null}
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-fg"

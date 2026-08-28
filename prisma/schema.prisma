@@ -273,6 +273,9 @@ model User {
   mfaSecret       String? // encrypted at rest (see src/lib/crypto/secretbox.ts)
   mfaRecoveryHash String[]   @default([])
   marketingOptIn  Boolean    @default(false)
+  // Demo accounts exist so the product can be walked through end to end. They
+  // are barred from every real-money rail; see src/lib/demo/mode.ts.
+  isDemo          Boolean    @default(false)
   suspendedReason String?
   deletionRequest DateTime?
   deletedAt       DateTime?
@@ -292,6 +295,7 @@ model User {
 
   @@index([status])
   @@index([role])
+  @@index([isDemo, role])
   @@map("users")
 }
 
@@ -352,6 +356,7 @@ model OAuthAccount {
 
 model Brand {
   id                 String             @id @default(uuid()) @db.Uuid
+  isDemo             Boolean            @default(false)
   slug               String             @unique
   legalName          String
   displayName        String
@@ -467,6 +472,7 @@ model VerifiedDomain {
 
 model Creator {
   id                    String             @id @default(uuid()) @db.Uuid
+  isDemo                Boolean            @default(false)
   userId                String             @unique @db.Uuid
   handle                String             @unique
   publisherType         String             @default("CREATOR") // CREATOR | WEBSITE | NEWSLETTER | COMMUNITY | APP | PODCAST | MEDIA_COMPANY

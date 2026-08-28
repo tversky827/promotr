@@ -8,6 +8,7 @@ import { env, integrations } from '@/lib/env';
 import { logger } from '@/lib/observability/logger';
 import { splitToCents } from '@/lib/money';
 import { getSettings } from '@/lib/settings';
+import { assertNotDemo, demoEnabled } from '@/lib/demo/mode';
 import { getStripe, stripeConfigured, StripeNotConfiguredError } from '@/lib/stripe';
 import { enqueue } from '@/lib/jobs/queue';
 
@@ -58,7 +59,16 @@ export async function checkPayoutEligibility(creatorId: string): Promise<PayoutE
   const balance = await balanceSummary(creatorId);
   const available = balance.availableMicros;
 
-  if (!stripeConfigured()) {
+  /*
+   * A demo publisher is paid over an internal rail: the ledger movement is the
+   * real one, but nothing leaves the platform, so the provider checks below do
+   * not apply to them. Every other gate — suspension, holds, the minimum, the
+   * balance itself — is enforced exactly as it is for a real publisher, because
+   * showing those working is the point of the walkthrough.
+   */
+  const onDemoRail = demoEnabled && creator.isDemo;
+
+  if (!onDemoRail && !stripeConfigured()) {
     return {
       eligible: false,
       code: 'STRIPE_NOT_CONFIGURED',
@@ -99,7 +109,7 @@ export async function checkPayoutEligibility(creatorId: string): Promise<PayoutE
       availableMicros: available,
     };
   }
-  if (!creator.stripeAccountId) {
+  if (!onDemoRail && !creator.stripeAccountId) {
     return {
       eligible: false,
       code: 'NO_CONNECT_ACCOUNT',
@@ -107,7 +117,7 @@ export async function checkPayoutEligibility(creatorId: string): Promise<PayoutE
       availableMicros: available,
     };
   }
-  if (!creator.stripePayoutsEnabled) {
+  if (!onDemoRail && !creator.stripePayoutsEnabled) {
     return {
       eligible: false,
       code: 'CONNECT_INCOMPLETE',
@@ -178,6 +188,10 @@ export async function requestPayout(params: {
   }
 
   const settings = await getSettings();
+  const creator = await prisma.creator.findUniqueOrThrow({
+    where: { id: params.creatorId },
+    select: { isDemo: true },
+  });
   const requested = params.amountMicros ?? eligibility.availableMicros;
   const amountMicros = requested > eligibility.availableMicros ? eligibility.availableMicros : requested;
   // Only whole cents can be transferred; the remainder stays with the publisher.
@@ -217,6 +231,9 @@ export async function requestPayout(params: {
         creatorId: params.creatorId,
         amountMicros: transferableMicros,
         amountCents: Number(cents),
+        // Recorded on the payout itself, so a demo payment is identifiable
+        // forever afterwards rather than only while DEMO_MODE happens to be on.
+        method: demoEnabled && creator.isDemo ? 'demo' : 'stripe_connect',
         status:
           transferableMicros <= BigInt(settings.payoutAutoApproveUnderMicros)
             ? 'APPROVED'
@@ -319,6 +336,23 @@ export async function processPayout(payoutId: string): Promise<{ ok: boolean; er
   if (payout.status !== 'APPROVED' && payout.status !== 'PROCESSING') {
     return { ok: false, error: `Payout is ${payout.status}, not approved` };
   }
+  /*
+   * The demo rail. A demo payout has already moved the balance into the payout
+   * clearing account by the same double-entry posting a real one uses; all that
+   * differs is that there is no provider on the other side to wait for, so it
+   * settles here instead of on a Stripe webhook. No provider call is made and
+   * no transfer id is invented.
+   */
+  if (payout.method === 'demo') {
+    await prisma.payout.update({
+      where: { id: payoutId },
+      data: { status: 'PROCESSING', processedAt: new Date() },
+    });
+    const { settled } = await settlePayout({ payoutId });
+    logger.info('payout.demo_settled', { payoutId, amountCents: payout.amountCents, settled });
+    return { ok: true };
+  }
+
   if (!payout.creator.stripeAccountId) {
     await failPayout(payoutId, 'no_connect_account', 'The publisher has no connected payout account');
     return { ok: false, error: 'No connected payout account' };
@@ -504,11 +538,13 @@ export async function createConnectOnboardingLink(params: {
   creatorId: string;
   returnPath?: string;
 }): Promise<{ url: string; accountId: string }> {
-  const stripe = getStripe('set up payouts');
   const creator = await prisma.creator.findUniqueOrThrow({
     where: { id: params.creatorId },
     include: { user: true },
   });
+  assertNotDemo(creator, 'connect a real payout account');
+
+  const stripe = getStripe('set up payouts');
 
   let accountId = creator.stripeAccountId;
 
