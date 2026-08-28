@@ -83,3 +83,25 @@ export async function currentOrigin(): Promise<string | null> {
   const h = await headers();
   return h.get('origin');
 }
+
+/**
+ * The origin this request was actually made to.
+ *
+ * A deployment is frequently reachable on a host nobody configured: a preview
+ * URL, the platform's default domain, a custom domain added later. Deriving it
+ * from the request means those all work without a rebuild.
+ *
+ * `x-forwarded-host` is only read when the deployment says it sits behind a
+ * proxy it controls, because a directly exposed server lets a client set it.
+ */
+export function requestOrigin(headerBag: Headers): string | null {
+  const forwarded = env.trustProxy ? headerBag.get('x-forwarded-host') : null;
+  const host = (forwarded ?? headerBag.get('host'))?.split(',')[0]?.trim();
+  if (!host) return null;
+
+  const proto =
+    (env.trustProxy ? headerBag.get('x-forwarded-proto')?.split(',')[0]?.trim() : null) ??
+    (env.isProduction ? 'https' : 'http');
+
+  return `${proto}://${host}`;
+}

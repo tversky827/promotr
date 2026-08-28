@@ -2,6 +2,7 @@ import { cookies, headers } from 'next/headers';
 
 import { CSRF_COOKIE, CSRF_FIELD, CSRF_HEADER, SESSION_COOKIE } from '@/lib/auth/constants';
 import { constantTimeEqual, hashToken } from '@/lib/crypto/hash';
+import { requestOrigin } from '@/lib/request';
 import { prisma } from '@/lib/db';
 import { env } from '@/lib/env';
 
@@ -27,16 +28,31 @@ export class CsrfError extends Error {
   }
 }
 
-function allowedOrigins(): string[] {
+/**
+ * Origins a form may be submitted from: the configured ones, plus the origin
+ * this very request arrived on.
+ *
+ * Including the request's own origin is what the classic same-origin check
+ * does, and it is not a weakening: a browser sets `Origin` itself and a page on
+ * another site cannot forge it, so a cross-site post still fails. What it fixes
+ * is a deployment reachable on a host that was never configured — a preview
+ * URL, a platform default, a domain added later — where every form would
+ * otherwise fail a check the person submitting it cannot see or explain.
+ */
+function allowedOrigins(headerBag: Headers): string[] {
   const origins = new Set<string>([env.appUrl]);
   if (env.trackingUrl) origins.add(env.trackingUrl);
+
+  const own = requestOrigin(headerBag);
+  if (own) origins.add(own);
+
   return [...origins];
 }
 
 /** Layer 1. Returns true when the request demonstrably came from our own site. */
 export function checkOrigin(headerBag: Headers): boolean {
   const origin = headerBag.get('origin');
-  const allowed = allowedOrigins();
+  const allowed = allowedOrigins(headerBag);
 
   if (origin) {
     // `null` origins come from sandboxed iframes and opaque contexts — never ours.
