@@ -8,6 +8,9 @@ import { checkOrigin, CsrfError } from '@/lib/auth/csrf';
 import { getSession, createSession, destroySession } from '@/lib/auth/session';
 import { DEMO_HOME, demoEnabled, demoUserFor, isDemoRole, type DemoRole } from '@/lib/demo/mode';
 import { PRESENTATION_COOKIE } from '@/lib/demo/presentation';
+import { recordAudit } from '@/lib/audit';
+import { requireBrand } from '@/lib/auth/guards';
+import * as budget from '@/lib/billing/budget';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/observability/logger';
 import { headers } from 'next/headers';
@@ -127,6 +130,101 @@ export const setPresentationMode = action(
     }
 
     return actionOk({ on: input.on === '1' });
+  },
+  { skipCsrf: true },
+);
+
+/**
+ * Fund a demo brand's new campaign and put it live.
+ *
+ * A real brand does this in three deliberate steps — create, fund, submit —
+ * because each one commits money or exposes the campaign to publishers, and
+ * collapsing them would remove a decision a brand should be making. A demo
+ * brand has no money to commit and a walkthrough to get through, so the three
+ * run together here: funded from the account balance it already holds, then put
+ * through the same moderation any campaign faces, and activated only if that
+ * moderation approves it.
+ */
+export const launchDemoCampaign = action(
+  z.object({ campaignId: z.string().uuid() }),
+  async (input, context) => {
+    await assertSameOrigin();
+    if (!demoEnabled) {
+      return actionError('Demo mode is not enabled on this deployment.', undefined, 'DEMO_OFF');
+    }
+
+    const { brand, user } = await requireBrand('campaign:create');
+    if (!brand.isDemo) {
+      return actionError('This is only available to a demo brand account.', undefined, 'DEMO_OFF');
+    }
+
+    const campaign = await prisma.campaign.findFirst({
+      where: { id: input.campaignId, brandId: brand.id },
+      include: { budget: true },
+    });
+    if (!campaign) return actionError('That campaign was not found.');
+    if (campaign.status === 'ACTIVE') return actionOk(undefined, 'Campaign is already live.');
+    if (campaign.status !== 'DRAFT') {
+      return actionError('This campaign has already been submitted.');
+    }
+
+    // Fund it from the balance the account already holds. `fundCampaign` moves
+    // the money brand-deposit → campaign-escrow through the ledger and refuses
+    // if the balance cannot cover it, which is the check that matters.
+    const declared = campaign.budget?.totalBudgetMicros ?? 0n;
+    const funded = campaign.budget?.fundedMicros ?? 0n;
+    const shortfall = declared - funded;
+
+    if (shortfall > 0n) {
+      try {
+        await prisma.$transaction(async (tx) => {
+          await budget.fundCampaign(tx, {
+            campaignId: campaign.id,
+            brandId: brand.id,
+            amountMicros: shortfall,
+            idempotencyKey: `demo:launch:fund:${campaign.id}`,
+            reason: 'Funded from the demo account balance',
+          });
+        });
+      } catch (error) {
+        return actionError(
+          `The campaign could not be funded from your balance: ${(error as Error).message}`,
+        );
+      }
+    }
+
+    const { moderateCampaign } = await import('@/lib/moderation');
+    await prisma.campaign.update({
+      where: { id: campaign.id },
+      data: { status: 'PENDING_REVIEW' },
+    });
+    const decision = await moderateCampaign(campaign.id);
+
+    await recordAudit({
+      actorUserId: user.id,
+      actorIp: context.ip,
+      action: 'campaign.launched',
+      entityKind: 'campaign',
+      entityId: campaign.id,
+      metadata: { decision: decision?.decision ?? 'UNKNOWN' },
+    });
+
+    if (decision?.decision !== 'APPROVED') {
+      return actionOk(
+        { launched: false },
+        decision?.decision === 'REJECTED'
+          ? 'Moderation did not accept this campaign.'
+          : 'Submitted. Moderation held this campaign for a human to review.',
+      );
+    }
+
+    await prisma.campaign.update({
+      where: { id: campaign.id },
+      data: { status: 'ACTIVE', launchedAt: new Date() },
+    });
+
+    logger.info('demo.campaign_launched', { campaignId: campaign.id, brandId: brand.id });
+    return actionOk({ launched: true }, 'Campaign launched successfully.');
   },
   { skipCsrf: true },
 );

@@ -50,10 +50,10 @@ export default async function BrandCampaignPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ range?: string }>;
+  searchParams: Promise<{ range?: string; launched?: string }>;
 }) {
   const { id } = await params;
-  const { range: rangeKey = '30d' } = await searchParams;
+  const { range: rangeKey = '30d', launched } = await searchParams;
   const { brand, membershipRole, user } = await pageBrand();
   const csrfToken = await currentCsrfToken();
 
@@ -139,6 +139,13 @@ export default async function BrandCampaignPage({
           We are checking the destination URL and campaign content. You will be emailed when it is
           decided — usually within a few hours. You can fund the campaign now so it is ready to go
           live immediately on approval.
+        </Alert>
+      ) : null}
+
+      {launched === '1' && campaign.status === 'ACTIVE' ? (
+        <Alert tone="success" className="mb-6" title="Campaign launched successfully.">
+          It is live in the marketplace now, and publishers can take a tracking link for it. You
+          will see clicks here as they arrive.
         </Alert>
       ) : null}
 

@@ -200,11 +200,19 @@ export const withdrawEarnings = action(z.object({}), async (_input, context) => 
   }
 
   void context;
+
+  /*
+   * An approved payout is already in flight — the balance has moved out of the
+   * publisher's available account and into clearing — so "initiated" is the
+   * accurate word for it. One that needs review has not moved anywhere yet,
+   * and saying so is the difference between a wait a publisher understands and
+   * one that looks like money going missing.
+   */
   return actionOk(
     { payoutId: result.payout.id, amountCents: result.payout.amountCents },
     result.payout.status === 'APPROVED'
-      ? 'Payout requested. It will be sent to your connected account shortly.'
-      : 'Payout requested. It is queued for review before being sent.',
+      ? 'Withdrawal initiated. You can follow it in your withdrawal history below.'
+      : 'Withdrawal requested. It is queued for review before it is sent.',
   );
 });
 

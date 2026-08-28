@@ -127,6 +127,7 @@ export default async function CreatorEarningsPage({
           blockCode={eligibility.eligible ? null : eligibility.code}
           stripeConfigured={stripeConfigured()}
           payoutsEnabled={creator.stripePayoutsEnabled}
+          demoRail={creator.isDemo}
           hasConnectAccount={Boolean(creator.stripeAccountId)}
           requirementsDue={creator.stripeRequirementsDue}
           taxFormStatus={creator.taxFormStatus}

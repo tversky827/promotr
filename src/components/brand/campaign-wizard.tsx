@@ -17,6 +17,7 @@ import {
   PROHIBITED_PRESETS,
 } from '@/lib/taxonomy';
 import { createCampaign, updateCampaign } from '@/server/actions/campaigns';
+import { launchDemoCampaign } from '@/server/actions/demo';
 
 /**
  * Campaign wizard.
@@ -108,12 +109,19 @@ export function CampaignWizard({
   brandName,
   platformFeeBps,
   minFundingLabel,
+  canLaunch = false,
 }: {
   csrfToken: string;
   initial?: CampaignDraft;
   brandName: string;
   platformFeeBps: number;
   minFundingLabel: string;
+  /**
+   * A demo brand funds from the balance it already holds and has nothing to
+   * decide between creating and launching, so the wizard finishes the job in
+   * one press instead of leaving a draft on the next screen.
+   */
+  canLaunch?: boolean;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState<CampaignDraft>(initial ?? EMPTY_DRAFT);
@@ -164,7 +172,25 @@ export function CampaignWizard({
     }
 
     const campaignId = 'campaignId' in result.data ? result.data.campaignId : draft.id;
-    router.push(`/brand/campaigns/${campaignId}`);
+
+    let launchedNow = false;
+    if (canLaunch && campaignId && !draft.id) {
+      setSubmitting(true);
+      const launchForm = new FormData();
+      launchForm.set(CSRF_FIELD, csrfToken);
+      launchForm.set('campaignId', campaignId);
+      const launched = await runAction(launchDemoCampaign, launchForm);
+      setSubmitting(false);
+      if (!launched.ok) {
+        setError(launched.error);
+        return;
+      }
+      // Moderation can still hold a campaign; only say it went live if it did.
+      launchedNow = (launched.data as { launched?: boolean } | undefined)?.launched === true;
+      if (!launchedNow && launched.message) setError(launched.message);
+    }
+
+    router.push(`/brand/campaigns/${campaignId}${launchedNow ? '?launched=1' : ''}`);
     router.refresh();
   };
 
@@ -532,7 +558,7 @@ export function CampaignWizard({
               disabled={!completion.canSubmit}
               onClick={submit}
             >
-              {isEditing ? 'Save changes' : 'Create campaign'}
+              {isEditing ? 'Save changes' : canLaunch ? 'Launch campaign' : 'Create campaign'}
             </Button>
           ) : (
             <Button onClick={() => setStep(STEPS[Math.min(STEPS.length - 1, stepIndex + 1)]!.id)}>

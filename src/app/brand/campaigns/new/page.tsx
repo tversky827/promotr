@@ -21,7 +21,11 @@ export default async function NewCampaignPage() {
     <>
       <PageHeader
         title="Create a campaign"
-        description="Set what you pay for and who can promote it. You fund and launch on the next screen."
+        description={
+          brand.isDemo
+            ? 'Set what you pay for and who can promote it. It is funded from your account balance and goes live when you launch.'
+            : 'Set what you pay for and who can promote it. You fund and launch on the next screen.'
+        }
       />
       <CampaignWizard
         csrfToken={csrfToken}
@@ -30,6 +34,7 @@ export default async function NewCampaignPage() {
         minFundingLabel={formatMicros(BigInt(settings.minCampaignFundingMicros), {
           showSubCent: false,
         })}
+        canLaunch={brand.isDemo}
       />
     </>
   );

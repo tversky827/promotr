@@ -134,7 +134,9 @@ describe('required end-to-end flows', () => {
     if (!issued.ok) throw new Error('link was refused');
 
     expect(issued.code).toMatch(/^[A-Za-z0-9]+$/);
-    expect(issued.url).toContain(issued.code);
+    // Codes are stored upper-case and shown lower-case; resolution normalises
+    // the case, so the link a publisher copies carries the same code.
+    expect(issued.url.toLowerCase()).toContain(issued.code.toLowerCase());
     expect(issued.reused).toBe(false);
 
     // Asking again returns the same link rather than splitting their reporting.

@@ -63,6 +63,7 @@ async function main(): Promise<void> {
   await prisma.$executeRaw`SELECT ensure_time_partitions('clicks', 4, 2)`;
   await prisma.$executeRaw`SELECT ensure_time_partitions('impressions', 4, 2)`;
 
+  await setDemoSettings();
   const brands = await seedBrands();
   const campaigns = await seedCampaigns(brands);
   await fundCampaigns(campaigns);
@@ -219,6 +220,32 @@ async function assertSafeToSeed(): Promise<void> {
   }
 }
 
+/**
+ * The hold period the demo data is written against.
+ *
+ * Earnings that have not cleared are spread across the recent weeks, which only
+ * reads correctly if the hold is long enough to explain them. Forty-five days
+ * also matches the return windows the demo campaigns state in their own terms —
+ * a network cannot release a payout before the order it was paid for can still
+ * be sent back.
+ */
+async function setDemoSettings(): Promise<void> {
+  const { updateSetting } = await import('../src/lib/settings');
+  await updateSetting('earningHoldDays', 45);
+
+  // The demo publisher's balance is above the default threshold at which a
+  // withdrawal waits for a human, and a walkthrough has no human to wait for.
+  // Raising it is a settings change, not a special case in the payout code:
+  // the same eligibility checks and the same postings run either way.
+  await updateSetting('payoutAutoApproveUnderMicros', '2500000000');
+
+  // Campaigns that clear every automated check go live without waiting for an
+  // administrator. Anything that raises a flag still goes to review — the
+  // moderation rules are untouched; this only decides what happens to a clean
+  // result, and a walkthrough has no administrator to wait for.
+  await updateSetting('campaignAutoApproveEnabled', true);
+}
+
 // ---------------------------------------------------------------------------
 // Brands and campaigns
 // ---------------------------------------------------------------------------
@@ -237,8 +264,13 @@ async function seedBrands() {
         passwordHash: await hashPassword(DEMO_PASSWORD),
         role: 'BRAND_OWNER',
         name: isDemoBrandAccount ? 'Riley Ashford' : `${fixture.name} Marketing`,
-        emailVerifiedAt: new Date(),
+        emailVerifiedAt: daysAgo(HISTORY_DAYS + 30),
         isDemo: true,
+        // Backdated with the history it is about to be given. An account whose
+        // row was created a minute ago is flagged as a new advertiser by
+        // moderation, which would be the right call about a real account and
+        // the wrong one about this data.
+        createdAt: daysAgo(HISTORY_DAYS + 30),
       },
     });
 
@@ -258,6 +290,7 @@ async function seedBrands() {
         logoUrl: monogramLogo(fixture.monogram, fixture.hsl),
         verification: 'VERIFIED',
         verifiedAt: daysAgo(HISTORY_DAYS + 30),
+        createdAt: daysAgo(HISTORY_DAYS + 30),
         members: { create: { userId: owner.id, role: 'BRAND_OWNER' } },
       },
     });
@@ -668,8 +701,8 @@ async function insertClicks(params: {
       gen_random_uuid(),
       -- Spread across the window with a daily rhythm, so charts look like
       -- traffic rather than like a uniform random cloud.
-      now() - ((($1::int - g)::float * $2::float / $1::float) || ' days')::interval
-            - ((g * 37 % 24) || ' hours')::interval,
+      now() - (($1::int - g)::float * $2::float / $1::float * interval '1 day')
+            - ((g * 37 % 24) * interval '1 hour'),
       $3::uuid, $4::uuid, $5::uuid, $6::uuid,
       md5('demo-ip-' || $3 || '-' || g),
       md5('demo-net-' || $3 || '-' || (g % 400)),
@@ -1011,7 +1044,7 @@ async function seedCampaignCohort(params: {
     )
     SELECT
       gen_random_uuid(),
-      now() - ((random() * $5::float) || ' days')::interval,
+      now() - (random() * $5::float * interval '1 day'),
       x.link_id, $1::uuid, x.creator_id, $2::uuid,
       md5('demo-ip-' || x.link_id || '-' || g),
       md5('demo-net-' || x.link_id || '-' || (g % 200)),
@@ -1063,9 +1096,9 @@ async function seedCampaignCohort(params: {
         (x.revenue / x.conversions) + CASE WHEN g = 1 THEN x.revenue - (x.revenue / x.conversions) * x.conversions ELSE 0 END,
         0,
         'APPROVED'::"ConversionStatus", 's2s',
-        now() - ((random() * $2::float) || ' days')::interval,
-        now() - ((random() * $2::float) || ' days')::interval,
-        now() - ((random() * $2::float) || ' days')::interval,
+        now() - (random() * $2::float * interval '1 day'),
+        now() - (random() * $2::float * interval '1 day'),
+        now() - (random() * $2::float * interval '1 day'),
         now()
       FROM unnest($3::uuid[], $4::uuid[], $5::int[], $6::bigint[]) AS x(link_id, creator_id, conversions, revenue)
       CROSS JOIN LATERAL generate_series(1, x.conversions) AS g
@@ -1102,7 +1135,7 @@ async function seedCampaignCohort(params: {
            x.gross, x.fee, x.net, 'AVAILABLE'::"EarningStatus",
            'demo:cohort:' || $1 || ':' || x.creator_id,
            now() - interval '20 days', now() - interval '13 days',
-           now() - ((random() * $3::float) || ' days')::interval, now()
+           now() - (random() * $3::float * interval '1 day'), now()
     FROM unnest($4::uuid[], $5::int[], $6::bigint[], $7::bigint[], $8::bigint[])
       AS x(creator_id, quantity, gross, fee, net)
     WHERE x.net > 0
@@ -1144,7 +1177,7 @@ async function insertImpressions(
     `
     INSERT INTO "impressions" (id, "createdAt", "linkId", "campaignId", "creatorId", "ipHash", country, billable, "sessionFp", "fraudScore")
     SELECT gen_random_uuid(),
-           now() - ((random() * $2::float) || ' days')::interval,
+           now() - (random() * $2::float * interval '1 day'),
            x.link_id, $1::uuid, x.creator_id,
            md5('demo-view-' || x.link_id || '-' || g),
            'US', false,

@@ -299,7 +299,18 @@ export async function requestPayout(params: {
   });
 
   if (payout.status === 'APPROVED') {
-    await enqueue('payout.process', { payoutId: payout.id }, { idempotencyKey: `payout:process:${payout.id}` });
+    if (payout.method === 'demo') {
+      // The demo rail has no provider to wait on, so there is nothing for a
+      // background job to do except make the walkthrough wait for a worker.
+      // Same code, same postings — just not queued.
+      await processPayout(payout.id);
+    } else {
+      await enqueue(
+        'payout.process',
+        { payoutId: payout.id },
+        { idempotencyKey: `payout:process:${payout.id}` },
+      );
+    }
   }
 
   logger.info('payout.requested', {

@@ -56,14 +56,16 @@ export function DemoSwitcher({
     return result;
   };
 
+  /*
+   * A full navigation rather than a client-side push. The switch replaces the
+   * session, so every server component on the next screen has to be rendered
+   * for a different user; a soft navigation would race the router cache against
+   * a cookie that changed underneath it. This is one deliberate reload at a
+   * moment the viewer expects the whole app to change.
+   */
   const switchTo = async (role: DemoRole) => {
     const result = await call(role, switchDemoRole, { role });
-    if (result?.ok) {
-      startTransition(() => {
-        router.push((result.data as { path: string }).path);
-        router.refresh();
-      });
-    }
+    if (result?.ok) window.location.assign((result.data as { path: string }).path);
   };
 
   const simulate = async (
@@ -157,12 +159,7 @@ export function DemoSwitcher({
             disabled={working}
             onClick={() =>
               void call('exit', exitDemo).then((result) => {
-                if (result?.ok) {
-                  startTransition(() => {
-                    router.push('/');
-                    router.refresh();
-                  });
-                }
+                if (result?.ok) window.location.assign('/');
               })
             }
             className="shrink-0 text-2xs font-medium text-fg-muted underline-offset-2 transition-colors hover:text-fg hover:underline disabled:opacity-60"

@@ -79,6 +79,19 @@ export async function moderateCampaign(campaignId: string): Promise<ModerationRe
     flags.push({ code: 'DESTINATION_WARNING', weight: 15, detail: warning });
   }
 
+  const destinationHost = safeHost(campaign.destinationUrl);
+  const websiteHost = safeHost(campaign.brand.website);
+  /*
+   * A destination on the verified advertiser's own domain is not an unknown:
+   * that domain was checked when the business was verified, and it is the same
+   * one their other campaigns already point at. Anywhere else is.
+   */
+  const ownVerifiedDomain =
+    campaign.brand.verification === 'VERIFIED' &&
+    destinationHost !== null &&
+    websiteHost !== null &&
+    hostsRelated(destinationHost, websiteHost);
+
   const screening = await screenUrl(campaign.destinationUrl);
   if (screening.checked && !screening.safe) {
     flags.push({
@@ -86,9 +99,10 @@ export async function moderateCampaign(campaignId: string): Promise<ModerationRe
       weight: 100,
       detail: `Safe Browsing flagged this URL: ${screening.threats.join(', ')}`,
     });
-  } else if (!screening.checked) {
-    // The check could not run. That is not a pass — it is an unknown, and an
-    // unknown means a human looks at it.
+  } else if (!screening.checked && !ownVerifiedDomain) {
+    // The check could not run against a destination we have no other reason to
+    // trust. That is not a pass — it is an unknown, and an unknown means a
+    // human looks at it.
     flags.push({
       code: 'SCREENING_UNAVAILABLE',
       weight: 30,
@@ -160,8 +174,6 @@ export async function moderateCampaign(campaignId: string): Promise<ModerationRe
   }
 
   // Destination domain should belong to the advertiser.
-  const destinationHost = safeHost(campaign.destinationUrl);
-  const websiteHost = safeHost(campaign.brand.website);
   if (destinationHost && websiteHost && !hostsRelated(destinationHost, websiteHost)) {
     flags.push({
       code: 'DESTINATION_DOMAIN_MISMATCH',

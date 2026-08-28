@@ -29,6 +29,7 @@ export function PayoutPanel({
   hasConnectAccount,
   requirementsDue,
   taxFormStatus,
+  demoRail = false,
 }: {
   csrfToken: string;
   availableMicros: string;
@@ -41,11 +42,18 @@ export function PayoutPanel({
   hasConnectAccount: boolean;
   requirementsDue: string[];
   taxFormStatus: string | null;
+  /**
+   * A demo account is paid over an internal rail: the ledger movement is real,
+   * but nothing leaves the platform, so there is no payment provider to connect
+   * and the destination is asked for rather than looked up.
+   */
+  demoRail?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [destination, setDestination] = useState<string | null>(null);
 
   const available = BigInt(availableMicros);
   const minimum = BigInt(minimumMicros);
@@ -59,7 +67,8 @@ export function PayoutPanel({
       formData.set(CSRF_FIELD, csrfToken);
       const result = await runAction(withdrawEarnings, formData);
       if (result.ok) {
-        setSuccess(result.message ?? 'Payout requested.');
+        setDestination(null);
+        setSuccess(result.message ?? 'Withdrawal initiated.');
         router.refresh();
       } else {
         setError(result.error);
@@ -86,7 +95,7 @@ export function PayoutPanel({
 
   // The integration is genuinely unavailable. Say so plainly rather than
   // showing a button that cannot work.
-  if (!stripeConfigured) {
+  if (!stripeConfigured && !demoRail) {
     return (
       <Card>
         <CardHeader title="Payouts" />
@@ -103,7 +112,9 @@ export function PayoutPanel({
       <CardHeader
         title="Withdraw"
         action={
-          payoutsEnabled ? (
+          demoRail ? (
+            <Badge tone="neutral">Demo payout</Badge>
+          ) : payoutsEnabled ? (
             <Badge tone="success" dot>
               Connected
             </Badge>
@@ -149,7 +160,11 @@ export function PayoutPanel({
       ) : null}
 
       <div className="mt-5">
-        {!hasConnectAccount ? (
+        {eligible ? (
+          <Button fullWidth size="lg" loading={pending} onClick={() => setDestination('bank')}>
+            Withdraw {formatAmount(available)}
+          </Button>
+        ) : !hasConnectAccount && !demoRail ? (
           <>
             <Button fullWidth loading={pending} onClick={connect}>
               Set up payouts
@@ -159,7 +174,7 @@ export function PayoutPanel({
               be taken to their secure onboarding.
             </p>
           </>
-        ) : !payoutsEnabled ? (
+        ) : !payoutsEnabled && !demoRail ? (
           <>
             <Button fullWidth loading={pending} onClick={connect}>
               Finish payout setup
@@ -177,10 +192,6 @@ export function PayoutPanel({
               </div>
             ) : null}
           </>
-        ) : eligible ? (
-          <Button fullWidth size="lg" loading={pending} onClick={withdraw}>
-            Withdraw {formatAmount(available)}
-          </Button>
         ) : (
           <>
             <Button fullWidth disabled>
@@ -204,7 +215,19 @@ export function PayoutPanel({
         )}
       </div>
 
-      {payoutsEnabled ? (
+      {destination !== null ? (
+        <WithdrawDialog
+          amount={formatAmount(available)}
+          destination={destination}
+          onDestination={setDestination}
+          onConfirm={withdraw}
+          onCancel={() => setDestination(null)}
+          pending={pending}
+          demoRail={demoRail}
+        />
+      ) : null}
+
+      {payoutsEnabled || demoRail ? (
         <dl className="mt-5 space-y-2 border-t border-border pt-4">
           <div className="flex items-baseline justify-between gap-2">
             <dt className="text-xs text-fg-muted">Payout minimum</dt>
@@ -223,6 +246,101 @@ export function PayoutPanel({
         </dl>
       ) : null}
     </Card>
+  );
+}
+
+const DESTINATIONS = [
+  { value: 'bank', label: 'Bank transfer', detail: 'Two to three business days' },
+  { value: 'paypal', label: 'PayPal', detail: 'Usually within a day' },
+  { value: 'other', label: 'Somewhere else', detail: 'Wise, Payoneer, and others' },
+] as const;
+
+/**
+ * The withdrawal confirmation.
+ *
+ * A withdrawal is the one action in the product a publisher cannot undo, so it
+ * asks once, in a dialog that states the amount and where it is going. On a
+ * demo account it also says plainly that no money moves — the ledger entries it
+ * writes are real, and the destination is not.
+ */
+function WithdrawDialog({
+  amount,
+  destination,
+  onDestination,
+  onConfirm,
+  onCancel,
+  pending,
+  demoRail,
+}: {
+  amount: string;
+  destination: string;
+  onDestination: (value: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+  pending: boolean;
+  demoRail: boolean;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-shadow/60 p-4 backdrop-blur-sm sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="withdraw-heading"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onCancel();
+      }}
+    >
+      <div className="w-full max-w-md animate-slide-up rounded-xl border border-border bg-surface-raised p-5 shadow-xl">
+        <h2 id="withdraw-heading" className="text-lg font-semibold tracking-tight text-fg">
+          Withdraw {amount}
+        </h2>
+        <p className="mt-1 text-sm text-fg-muted text-pretty">
+          {demoRail
+            ? 'This is a demo account, so no money leaves the platform. The balance moves through the same ledger entries a real withdrawal writes, and the payout is recorded as a demo payment.'
+            : 'Your whole available balance will be sent to your connected payout account.'}
+        </p>
+
+        <fieldset className="mt-4">
+          <legend className="text-2xs font-medium uppercase tracking-wide text-fg-subtle">
+            Where should it go
+          </legend>
+          <div className="mt-2 space-y-1.5">
+            {DESTINATIONS.map((option) => (
+              <label
+                key={option.value}
+                className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${
+                  destination === option.value
+                    ? 'border-primary bg-primary-soft/40'
+                    : 'border-border hover:border-border-strong'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="withdraw-destination"
+                  value={option.value}
+                  checked={destination === option.value}
+                  onChange={() => onDestination(option.value)}
+                  className="mt-0.5 size-4 accent-[hsl(var(--primary))]"
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-fg">{option.label}</span>
+                  <span className="block text-xs text-fg-subtle">{option.detail}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <Button variant="secondary" onClick={onCancel} disabled={pending}>
+            Cancel
+          </Button>
+          <Button onClick={onConfirm} loading={pending}>
+            Withdraw {amount}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
