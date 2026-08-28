@@ -31,7 +31,7 @@ export default function TrackingDocsPage() {
           When a visitor clicks a publisher&apos;s tracking link we redirect them to your destination
           URL with one parameter appended:
         </p>
-        <CodeBlock language="text">{`https://yourbrand.com/landing?pmtr_click=8f14e45f-ea0c-4b21-9d8e-2c3f1a5b7e90`}</CodeBlock>
+        <CodeBlock language="text">{`https://yourbrand.com/landing?adc_click=8f14e45f-ea0c-4b21-9d8e-2c3f1a5b7e90`}</CodeBlock>
         <p>
           That value is the click identifier. Store it, and send it back when the visitor converts.
           It is opaque — it identifies the click in our database and tells you nothing about the
@@ -51,11 +51,11 @@ export default function TrackingDocsPage() {
         </p>
 
         <p>Add it to every page, including your landing pages:</p>
-        <CodeBlock language="html" filename="Every page">{`<script async src="${host}/sdk/p.js"></script>
+        <CodeBlock language="html" filename="Every page">{`<script async src="${host}/sdk/a.js"></script>
 <script>
-  window.promotr = window.promotr || { q: [] };
+  window.audicents = window.audicents || { q: [] };
   window.addEventListener('load', function () {
-    promotr.init({
+    audicents.init({
       key: 'pk_live_your_api_key',
       campaign: 'your-campaign-id'
     });
@@ -63,15 +63,15 @@ export default function TrackingDocsPage() {
 </script>`}</CodeBlock>
 
         <p>Then, on your confirmation or thank-you page:</p>
-        <CodeBlock language="javascript" filename="Confirmation page">{`promotr.trackConversion({
+        <CodeBlock language="javascript" filename="Confirmation page">{`audicents.trackConversion({
   conversionId: 'order-1042',   // your order id — this is the de-duplication key
   value: 129.99,                 // order value; drives revenue-share payouts
   currency: 'usd'
 });`}</CodeBlock>
 
         <p>The SDK also exposes:</p>
-        <CodeBlock language="javascript">{`promotr.getClickId();  // the stored click id, or null if this visit was not attributed
-promotr.clear();       // clears stored attribution — wire this into your consent control`}</CodeBlock>
+        <CodeBlock language="javascript">{`audicents.getClickId();  // the stored click id, or null if this visit was not attributed
+audicents.clear();       // clears stored attribution — wire this into your consent control`}</CodeBlock>
 
         <Alert tone="warning" title="conversionId must be stable">
           Use your own order identifier, not a random value. If it changes between retries you will
@@ -100,7 +100,7 @@ promotr.clear();       // clears stored attribution — wire this into your cons
             {
               name: 'click',
               type: 'uuid',
-              description: 'The pmtr_click value from the landing page URL.',
+              description: 'The adc_click value from the landing page URL.',
             },
             { name: 'v', type: 'decimal', description: 'Order value, e.g. 129.99.' },
             { name: 'cur', type: 'string', description: 'Currency code. Defaults to usd.' },
@@ -110,7 +110,7 @@ promotr.clear();       // clears stored attribution — wire this into your cons
         <Alert tone="info" title="The pixel always returns an image">
           Even when the request is rejected, the endpoint returns a valid 1×1 GIF with HTTP 200 — a
           broken image icon on your confirmation page would be worse for you than an unrecorded
-          conversion. The outcome is in the <code>X-Promotr-Status</code> response header, and
+          conversion. The outcome is in the <code>X-Audicents-Status</code> response header, and
           failures are visible in your dashboard.
         </Alert>
       </DocSection>
@@ -192,7 +192,7 @@ promotr.clear();       // clears stored attribution — wire this into your cons
           <li>Sign up a second account as a publisher and take a link for your campaign.</li>
           <li>
             Click your own tracking link. It will be flagged as a self-click and not billed, but the
-            click is still recorded and you will get a <code>pmtr_click</code> value.
+            click is still recorded and you will get a <code>adc_click</code> value.
           </li>
           <li>Copy that value and fire a conversion with it using any of the four methods.</li>
           <li>

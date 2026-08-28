@@ -1,35 +1,8 @@
 import Link from 'next/link';
 
+import { Logo } from '@/components/identity/logo';
 import { ButtonLink } from '@/components/ui/button';
 import { brand } from '@/lib/brand';
-
-export function Logo({ className }: { className?: string }) {
-  return (
-    <Link href="/" className={`inline-flex items-center gap-2 ${className ?? ''}`}>
-      {brand.logoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={brand.logoUrl} alt="" className="size-7 rounded-md" width={28} height={28} />
-      ) : (
-        <span
-          className="grid size-7 place-items-center rounded-md bg-primary text-primary-fg"
-          aria-hidden="true"
-        >
-          <svg viewBox="0 0 24 24" className="size-4" fill="none">
-            <path
-              d="M5 14.5 10.5 9l4 4L20 7"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path d="M15 7h5v5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-      )}
-      <span className="text-md font-semibold tracking-tight text-fg">{brand.name}</span>
-    </Link>
-  );
-}
 
 export function MarketingNav({ signedIn, homePath }: { signedIn: boolean; homePath: string }) {
   return (

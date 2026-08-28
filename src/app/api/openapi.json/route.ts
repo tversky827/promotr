@@ -80,7 +80,7 @@ function spec() {
             click_id: {
               type: ['string', 'null'],
               format: 'uuid',
-              description: 'The pmtr_click value appended to your landing page URL.',
+              description: 'The adc_click value appended to your landing page URL.',
             },
             value: {
               type: ['string', 'number'],
@@ -238,7 +238,7 @@ function spec() {
         get: {
           summary: 'Conversion pixel',
           description:
-            'Always returns a 1x1 GIF with HTTP 200 so a misconfigured pixel never shows a broken image on an advertiser confirmation page. The real outcome is in the X-Promotr-Status header.',
+            'Always returns a 1x1 GIF with HTTP 200 so a misconfigured pixel never shows a broken image on an advertiser confirmation page. The real outcome is in the X-Audicents-Status header.',
           operationId: 'conversionPixel',
           parameters: [
             { name: 'k', in: 'query', required: true, schema: { type: 'string' } },
@@ -251,7 +251,7 @@ function spec() {
             '200': {
               description: 'A 1x1 GIF.',
               headers: {
-                'X-Promotr-Status': {
+                'X-Audicents-Status': {
                   schema: { type: 'string' },
                   description: 'recorded | duplicate | unauthorized | rejected:<reason> | error',
                 },

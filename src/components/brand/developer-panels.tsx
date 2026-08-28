@@ -316,7 +316,7 @@ function UrlField() {
     <Input
       name="url"
       label="Endpoint URL"
-      placeholder="https://api.yourbrand.com/webhooks/promotr"
+      placeholder="https://api.yourbrand.com/webhooks/audicents"
       required
       hint="HTTPS only"
       error={useFieldError('url')}

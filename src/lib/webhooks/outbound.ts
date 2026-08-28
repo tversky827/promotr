@@ -13,7 +13,7 @@ import { validateDestinationUrl } from '@/lib/urlsafety';
  * Signing follows the scheme Stripe popularised, because it is well understood
  * and defends against the two attacks that matter:
  *
- *   Promotr-Signature: t=<unix>,v1=<hex hmac of "t.body">
+ *   Audicents-Signature: t=<unix>,v1=<hex hmac of "t.body">
  *
  * The timestamp is inside the signed payload, so a captured delivery cannot be
  * replayed later; and the signature covers the exact bytes, so the body cannot
@@ -211,11 +211,11 @@ export async function attemptDelivery(deliveryId: string): Promise<boolean> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Promotr-Webhooks/1.0',
-        'Promotr-Signature': signPayload(secret, body, timestamp),
-        'Promotr-Event-Id': delivery.eventId,
-        'Promotr-Event-Type': delivery.eventType,
-        'Promotr-Delivery-Attempt': String(attempt),
+        'User-Agent': 'Audicents-Webhooks/1.0',
+        'Audicents-Signature': signPayload(secret, body, timestamp),
+        'Audicents-Event-Id': delivery.eventId,
+        'Audicents-Event-Type': delivery.eventType,
+        'Audicents-Delivery-Attempt': String(attempt),
       },
       body,
       signal: AbortSignal.timeout(15_000),

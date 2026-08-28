@@ -62,10 +62,10 @@ export default function WebhooksDocsPage() {
 
       <DocSection id="signatures" title="Verifying signatures">
         <p>Every delivery carries a signature header:</p>
-        <CodeBlock language="text">{`Promotr-Signature: t=1773484925,v1=5257a869e7ecebeda32affa62cdca3fa51cad7e77a0e56ff536d0ce8e108d8bd
-Promotr-Event-Id: evt_x7k2m9q4
-Promotr-Event-Type: conversion.created
-Promotr-Delivery-Attempt: 1`}</CodeBlock>
+        <CodeBlock language="text">{`Audicents-Signature: t=1773484925,v1=5257a869e7ecebeda32affa62cdca3fa51cad7e77a0e56ff536d0ce8e108d8bd
+Audicents-Event-Id: evt_x7k2m9q4
+Audicents-Event-Type: conversion.created
+Audicents-Delivery-Attempt: 1`}</CodeBlock>
 
         <p>
           The signature is an HMAC-SHA256 of{' '}
@@ -121,7 +121,7 @@ function verify(rawBody, signatureHeader, secret) {
 
       <DocSection id="ordering" title="Ordering and duplicates">
         <p>
-          Delivery is at-least-once and unordered. Use <code>Promotr-Event-Id</code> to de-duplicate,
+          Delivery is at-least-once and unordered. Use <code>Audicents-Event-Id</code> to de-duplicate,
           and the <code>created</code> timestamp to detect out-of-order arrivals. Do not assume that
           receiving <code>conversion.approved</code> means you already received{' '}
           <code>conversion.created</code>.

@@ -18,7 +18,7 @@ process.env.IP_HASH_SECRET =
 process.env.DATABASE_URL =
   process.env.TEST_DATABASE_URL ??
   process.env.DATABASE_URL ??
-  'postgresql://postgres:postgres@127.0.0.1:5432/promotr_test?schema=public';
+  'postgresql://postgres:postgres@127.0.0.1:5432/audicents_test?schema=public';
 
 process.env.NEXT_PUBLIC_APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 process.env.NEXT_PUBLIC_TRACKING_URL =

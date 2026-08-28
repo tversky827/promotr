@@ -99,7 +99,7 @@ export function captureException(error: unknown, context: ErrorContext = {}): vo
       'X-Sentry-Auth': [
         'Sentry sentry_version=7',
         `sentry_key=${dsn.publicKey}`,
-        'sentry_client=promotr/1.0',
+        'sentry_client=audicents/1.0',
       ].join(', '),
     },
     body: envelope,

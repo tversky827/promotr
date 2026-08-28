@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og';
 
+import { MARK_PATHS } from '@/components/identity/logo';
 import { brand } from '@/lib/brand';
 
 /**
@@ -7,7 +8,8 @@ import { brand } from '@/lib/brand';
  *
  * Generated rather than shipped as a file so it follows the configured brand
  * colour — a white-labelled deployment gets its own mark without replacing an
- * asset. The mark is the same rising-line glyph used in the header.
+ * asset. The geometry is imported from the logo so the tab icon can never
+ * drift from the header mark.
  */
 
 export const size = { width: 32, height: 32 };
@@ -23,25 +25,14 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: `hsl(${brand.primaryHsl})`,
+          background: `hsl(${brand.markHsl})`,
           borderRadius: 7,
         }}
       >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M5 14.5 10.5 9l4 4L20 7"
-            stroke="white"
-            strokeWidth="2.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M15 7h5v5"
-            stroke="white"
-            strokeWidth="2.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#F6F1E6" strokeLinecap="round">
+          <circle cx="12" cy="12" r={MARK_PATHS.core} fill="#F6F1E6" stroke="none" />
+          <path d={MARK_PATHS.inner} strokeWidth="2.3" />
+          <path d={MARK_PATHS.outer} strokeWidth="1.8" opacity="0.66" />
         </svg>
       </div>
     ),

@@ -2,9 +2,9 @@ import type { Config } from 'tailwindcss';
 
 /**
  * Theme tokens are CSS variables defined in globals.css, not literals here.
- * That is what makes the product white-labelable: changing
- * NEXT_PUBLIC_BRAND_PRIMARY_HSL re-themes the entire application at runtime,
- * with no rebuild.
+ * That is what lets the light and dark themes differ, and what makes the
+ * product white-labelable: NEXT_PUBLIC_BRAND_PRIMARY_HSL re-themes the accent
+ * across the whole application at runtime, with no rebuild.
  */
 const config: Config = {
   darkMode: 'class',
@@ -24,6 +24,8 @@ const config: Config = {
         primary: 'hsl(var(--primary) / <alpha-value>)',
         'primary-fg': 'hsl(var(--primary-fg) / <alpha-value>)',
         'primary-soft': 'hsl(var(--primary-soft) / <alpha-value>)',
+        accent: 'hsl(var(--accent) / <alpha-value>)',
+        'accent-soft': 'hsl(var(--accent-soft) / <alpha-value>)',
         success: 'hsl(var(--success) / <alpha-value>)',
         'success-soft': 'hsl(var(--success-soft) / <alpha-value>)',
         warning: 'hsl(var(--warning) / <alpha-value>)',

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-import { Logo } from '@/components/marketing/nav';
+import { Logo } from '@/components/identity/logo';
 import { Badge } from '@/components/ui/primitives';
 import { cn } from '@/lib/cn';
 

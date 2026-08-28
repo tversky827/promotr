@@ -1,4 +1,4 @@
-# Promotr — local stack.
+# Audicents — local stack.
 #
 #   docker compose up
 #
@@ -13,9 +13,9 @@
 
 x-app-env: &app-env
   NODE_ENV: production
-  DATABASE_URL: postgresql://promotr:promotr@db:5432/promotr
+  DATABASE_URL: postgresql://audicents:audicents@db:5432/audicents
   # No pooler in front of this database, so migrations use the same connection.
-  DIRECT_DATABASE_URL: postgresql://promotr:promotr@db:5432/promotr
+  DIRECT_DATABASE_URL: postgresql://audicents:audicents@db:5432/audicents
   NEXT_PUBLIC_APP_URL: http://localhost:3000
   NEXT_PUBLIC_TRACKING_URL: http://localhost:3000
   # Development-only keys. Generate real ones with `openssl rand -base64 32`.
@@ -31,13 +31,13 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: promotr
-      POSTGRES_PASSWORD: promotr
-      POSTGRES_DB: promotr
+      POSTGRES_USER: audicents
+      POSTGRES_PASSWORD: audicents
+      POSTGRES_DB: audicents
     volumes:
-      - promotr-db:/var/lib/postgresql/data
+      - audicents-db:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U promotr -d promotr']
+      test: ['CMD-SHELL', 'pg_isready -U audicents -d audicents']
       interval: 3s
       timeout: 3s
       retries: 20
@@ -47,7 +47,7 @@ services:
 
   # Runs once, then exits. The application waits for it to succeed.
   migrate:
-    image: promotr:local
+    image: audicents:local
     build:
       context: .
     environment:
@@ -65,7 +65,7 @@ services:
     restart: 'no'
 
   app:
-    image: promotr:local
+    image: audicents:local
     build:
       context: .
     environment: *app-env
@@ -86,7 +86,7 @@ services:
       start_period: 20s
 
   worker:
-    image: promotr:local
+    image: audicents:local
     build:
       context: .
     environment: *app-env
@@ -97,4 +97,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  promotr-db:
+  audicents-db:

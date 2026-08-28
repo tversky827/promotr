@@ -19,7 +19,7 @@ import { env, integrations } from '@/lib/env';
  *    anything the browser handed us.
  */
 
-export const OAUTH_STATE_COOKIE = 'promotr_oauth_state';
+export const OAUTH_STATE_COOKIE = 'audicents_oauth_state';
 const AUTHORIZE_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo';

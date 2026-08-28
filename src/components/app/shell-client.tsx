@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
-import { Logo } from '@/components/marketing/nav';
+import { Logo } from '@/components/identity/logo';
 import { cn } from '@/lib/cn';
 import { logout } from '@/server/actions/auth';
 
@@ -270,7 +270,7 @@ export function UserMenu({
 }
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
   useEffect(() => {
     setTheme(document.documentElement.classList.contains('dark') ? 'dark' : 'light');

@@ -146,7 +146,7 @@ export async function screenUrl(url: string): Promise<SafeBrowsingResult> {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          client: { clientId: 'promotr', clientVersion: '1.0.0' },
+          client: { clientId: 'audicents', clientVersion: '1.0.0' },
           threatInfo: {
             threatTypes: [
               'MALWARE',

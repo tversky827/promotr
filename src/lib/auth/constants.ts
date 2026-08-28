@@ -6,7 +6,7 @@
  * from them would drag the entire server runtime into the browser bundle.
  */
 
-export const SESSION_COOKIE = 'promotr_session';
-export const CSRF_COOKIE = 'promotr_csrf';
+export const SESSION_COOKIE = 'audicents_session';
+export const CSRF_COOKIE = 'audicents_csrf';
 export const CSRF_HEADER = 'x-csrf-token';
 export const CSRF_FIELD = '_csrf';

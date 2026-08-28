@@ -136,7 +136,7 @@ The generated-column and GIN index definitions show up as expected differences.
 thousand clicks, conversions and earnings — all through the real ledger and
 budget code paths, so balances are internally consistent.
 
-Every seeded account uses the `seed.promotr.test` email domain. The script
+Every seeded account uses the `seed.audicents.test` email domain. The script
 refuses to run if `NODE_ENV=production` (unless explicitly overridden), if any
 payout or settled deposit exists, or if any non-seed user account is present. It
 cannot clear a previous run once that run has posted to the ledger — entries are

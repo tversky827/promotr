@@ -67,7 +67,7 @@ look production-grade.
 | --- | --- |
 | `EMAIL_PROVIDER` | `resend`, `postmark`, `sendgrid`, `smtp` or `console` |
 | `EMAIL_API_KEY` | For the API providers |
-| `EMAIL_FROM` | Sender, e.g. `"Promotr <no-reply@example.com>"` |
+| `EMAIL_FROM` | Sender, e.g. `"Audicents <no-reply@example.com>"` |
 | `EMAIL_REPLY_TO` | Optional |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | For `smtp` |
 
@@ -130,9 +130,9 @@ anywhere in the source.
 
 | Variable | Default |
 | --- | --- |
-| `NEXT_PUBLIC_BRAND_NAME` | `Promotr` |
+| `NEXT_PUBLIC_BRAND_NAME` | `Audicents` |
 | `NEXT_PUBLIC_BRAND_TAGLINE` | `Get paid to drive traffic.` |
-| `NEXT_PUBLIC_BRAND_LEGAL_NAME` | `Promotr, Inc.` |
+| `NEXT_PUBLIC_BRAND_LEGAL_NAME` | `Audicents, Inc.` |
 | `NEXT_PUBLIC_BRAND_SUPPORT_EMAIL` | `support@example.com` |
 | `NEXT_PUBLIC_BRAND_LOGO_URL` | built-in mark |
 | `NEXT_PUBLIC_BRAND_PRIMARY_HSL` | `243 75% 59%` |

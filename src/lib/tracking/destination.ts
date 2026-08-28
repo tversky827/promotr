@@ -2,7 +2,7 @@
  * Destination URL construction.
  *
  * What we append to the brand's landing page is deliberately minimal:
- *   - `pmtr_click` so the brand can report a conversion back against this click
+ *   - `adc_click` so the brand can report a conversion back against this click
  *   - the publisher's sub-id and UTM parameters, which are the brand's own
  *     campaign taxonomy and are expected downstream
  *
@@ -11,7 +11,7 @@
  * database. A brand receiving traffic learns nothing about the person.
  */
 
-export const CLICK_ID_PARAM = 'pmtr_click';
+export const CLICK_ID_PARAM = 'adc_click';
 
 export interface DestinationParams {
   base: string;

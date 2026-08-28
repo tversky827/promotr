@@ -106,7 +106,7 @@ describe('end-to-end over HTTP', () => {
     const target = new URL(location!);
     expect(target.origin + target.pathname).toBe('https://example.com/landing');
     // The advertiser receives the click id so they can report a conversion.
-    const clickId = target.searchParams.get('pmtr_click');
+    const clickId = target.searchParams.get('adc_click');
     expect(clickId).toMatch(/^[0-9a-f-]{36}$/);
 
     // Tracking links must never be cached.
@@ -130,7 +130,7 @@ describe('end-to-end over HTTP', () => {
       redirect: 'manual',
       headers: { 'user-agent': CHROME },
     });
-    const clickId = new URL(redirect.headers.get('location')!).searchParams.get('pmtr_click')!;
+    const clickId = new URL(redirect.headers.get('location')!).searchParams.get('adc_click')!;
     await waitForClick();
 
     // 2. The advertiser reports a conversion through the API.
@@ -167,7 +167,7 @@ describe('end-to-end over HTTP', () => {
       redirect: 'manual',
       headers: { 'user-agent': CHROME },
     });
-    const clickId = new URL(redirect.headers.get('location')!).searchParams.get('pmtr_click')!;
+    const clickId = new URL(redirect.headers.get('location')!).searchParams.get('adc_click')!;
     await waitForClick();
 
     const send = () =>
@@ -241,7 +241,7 @@ describe('end-to-end over HTTP', () => {
       redirect: 'manual',
       headers: { 'user-agent': CHROME },
     });
-    const clickId = new URL(redirect.headers.get('location')!).searchParams.get('pmtr_click')!;
+    const clickId = new URL(redirect.headers.get('location')!).searchParams.get('adc_click')!;
     await waitForClick();
 
     const postback = await fetch(
@@ -259,7 +259,7 @@ describe('end-to-end over HTTP', () => {
       redirect: 'manual',
       headers: { 'user-agent': CHROME },
     });
-    const clickId = new URL(redirect.headers.get('location')!).searchParams.get('pmtr_click')!;
+    const clickId = new URL(redirect.headers.get('location')!).searchParams.get('adc_click')!;
     await waitForClick();
 
     const pixel = await fetch(
@@ -268,18 +268,18 @@ describe('end-to-end over HTTP', () => {
 
     expect(pixel.status).toBe(200);
     expect(pixel.headers.get('content-type')).toBe('image/gif');
-    expect(pixel.headers.get('x-promotr-status')).toBe('recorded');
+    expect(pixel.headers.get('x-audicents-status')).toBe('recorded');
 
     // Even a completely invalid request must return an image, never a broken
     // image icon on the advertiser's confirmation page.
     const broken = await fetch(`${BASE}/px/c?k=bogus&c=nope&id=x`);
     expect(broken.status).toBe(200);
     expect(broken.headers.get('content-type')).toBe('image/gif');
-    expect(broken.headers.get('x-promotr-status')).toBe('unauthorized');
+    expect(broken.headers.get('x-audicents-status')).toBe('unauthorized');
   });
 
   it('serves the tracking SDK with the deployment host baked in', async () => {
-    const response = await fetch(`${BASE}/sdk/p.js`);
+    const response = await fetch(`${BASE}/sdk/a.js`);
 
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('javascript');
@@ -344,7 +344,7 @@ describe('end-to-end over HTTP', () => {
 
     const response = await fetch(`${BASE}/api/auth/csrf`, {
       method: 'POST',
-      headers: { origin: BASE, cookie: `promotr_session=${sessionToken}` },
+      headers: { origin: BASE, cookie: `audicents_session=${sessionToken}` },
     });
     expect(response.status).toBe(200);
 
@@ -368,7 +368,7 @@ describe('end-to-end over HTTP', () => {
     // Nor to a cross-site caller holding a valid session cookie.
     const crossSite = await fetch(`${BASE}/api/auth/csrf`, {
       method: 'POST',
-      headers: { origin: 'https://evil.example', cookie: `promotr_session=${sessionToken}` },
+      headers: { origin: 'https://evil.example', cookie: `audicents_session=${sessionToken}` },
     });
     expect(crossSite.status).toBe(403);
   });

@@ -92,7 +92,7 @@ Idempotency-Key: order-1042-attempt-1        (optional)
 | --- | --- | --- |
 | `campaign_id` | yes | UUID of your campaign |
 | `conversion_id` | yes | Your order or lead id — the de-duplication key |
-| `click_id` | practically | The `pmtr_click` value from your landing page. Without it the conversion cannot be attributed and is rejected |
+| `click_id` | practically | The `adc_click` value from your landing page. Without it the conversion cannot be attributed and is rejected |
 | `value` | for revenue share | Decimal string or number; parsed exactly, never through a float |
 | `event_type` | no | `SALE`, `LEAD`, `CLICK`, `IMPRESSION`, `CUSTOM` |
 | `currency` | no | Defaults to the campaign's currency |
@@ -144,7 +144,7 @@ event is recorded either way, because you need to see that it happened.
 
 The pixel always returns a valid GIF with 200, even when the report is rejected
 — a broken image on a customer's confirmation page would be worse for the brand
-than an unrecorded conversion. The outcome is in the `X-Promotr-Status` header
+than an unrecorded conversion. The outcome is in the `X-Audicents-Status` header
 and visible in the dashboard.
 
 ## Rate limits
@@ -165,7 +165,7 @@ protective control should not become an outage in the product.
 Register endpoints under **Developers**. Each delivery carries:
 
 ```
-X-Promotr-Signature: t=1710412925,v1=5257a869e7ecebeda32affa62cdca3fa51cad7e77a0e56ff536d0ce8e108d8bd
+X-Audicents-Signature: t=1710412925,v1=5257a869e7ecebeda32affa62cdca3fa51cad7e77a0e56ff536d0ce8e108d8bd
 ```
 
 Verify by computing `HMAC-SHA256(secret, "{timestamp}.{body}")` and comparing in
@@ -192,7 +192,7 @@ A link looks like `https://your-domain/go/AbC123`. The redirect appends one
 parameter to your destination:
 
 ```
-https://yourbrand.com/landing?pmtr_click=8f14e45f-ea0c-4b21-9d8e-2c3f1a5b7e90
+https://yourbrand.com/landing?adc_click=8f14e45f-ea0c-4b21-9d8e-2c3f1a5b7e90
 ```
 
 Store it, and send it back as `click_id` when the visitor converts. It is opaque
@@ -200,5 +200,5 @@ Store it, and send it back as `click_id` when the visitor converts. It is opaque
 The redirect sends `Referrer-Policy: no-referrer`, so the tracking code is not
 leaked to your site in the referrer header.
 
-The JavaScript SDK at `/sdk/p.js` captures and stores it for you, and sends
+The JavaScript SDK at `/sdk/a.js` captures and stores it for you, and sends
 conversions with one call. It is about 2KB and has no dependencies.

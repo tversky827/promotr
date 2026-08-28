@@ -38,7 +38,7 @@ function pixelResponse(status: string): Response {
       Pragma: 'no-cache',
       // Lets a brand debug their integration from the browser network tab
       // without the pixel ever failing visibly on their page.
-      'X-Promotr-Status': status,
+      'X-Audicents-Status': status,
       'Access-Control-Allow-Origin': '*',
       'X-Robots-Tag': 'noindex, nofollow',
     },
@@ -52,7 +52,7 @@ export async function GET(request: Request): Promise<Response> {
     const key = params.get('k') ?? params.get('key');
     const campaignId = params.get('c') ?? params.get('campaign_id');
     const conversionId = params.get('id') ?? params.get('conversion_id');
-    const clickId = params.get('click') ?? params.get('pmtr_click');
+    const clickId = params.get('click') ?? params.get('adc_click');
     const value = params.get('v') ?? params.get('value');
 
     if (!key || !campaignId || !conversionId) {

@@ -2,6 +2,8 @@
  * Branding. Every user-visible name, colour and legal entity lives here and is
  * driven by environment variables, so re-skinning the product is a config
  * change rather than a code change.
+ *
+ * The defaults below are Audicents: AUDI (audience) + CENTS (value).
  */
 
 function pub(key: string, fallback: string): string {
@@ -21,12 +23,19 @@ function pub(key: string, fallback: string): string {
 }
 
 export const brand = {
-  name: pub('NEXT_PUBLIC_BRAND_NAME', 'Promotr'),
-  tagline: pub('NEXT_PUBLIC_BRAND_TAGLINE', 'Get paid to drive traffic.'),
-  legalName: pub('NEXT_PUBLIC_BRAND_LEGAL_NAME', 'Promotr, Inc.'),
-  supportEmail: pub('NEXT_PUBLIC_BRAND_SUPPORT_EMAIL', 'support@example.com'),
+  name: pub('NEXT_PUBLIC_BRAND_NAME', 'Audicents'),
+  tagline: pub('NEXT_PUBLIC_BRAND_TAGLINE', 'Turn your audience into income.'),
+  legalName: pub('NEXT_PUBLIC_BRAND_LEGAL_NAME', 'Audicents, Inc.'),
+  supportEmail: pub('NEXT_PUBLIC_BRAND_SUPPORT_EMAIL', 'support@audicents.com'),
   logoUrl: pub('NEXT_PUBLIC_BRAND_LOGO_URL', ''),
-  primaryHsl: pub('NEXT_PUBLIC_BRAND_PRIMARY_HSL', '243 75% 59%'),
+  /**
+   * A white-label deployment can force one accent colour. When it is unset the
+   * designed palette in globals.css applies, which is the only way the light
+   * and dark themes can carry different accents.
+   */
+  primaryHslOverride: pub('NEXT_PUBLIC_BRAND_PRIMARY_HSL', ''),
+  /** The accent to draw the generated favicon with. */
+  markHsl: pub('NEXT_PUBLIC_BRAND_PRIMARY_HSL', '154 46% 20%'),
   appUrl: pub('NEXT_PUBLIC_APP_URL', 'http://localhost:3000').replace(/\/$/, ''),
   trackingUrl: (
     pub('NEXT_PUBLIC_TRACKING_URL', '') || pub('NEXT_PUBLIC_APP_URL', 'http://localhost:3000')

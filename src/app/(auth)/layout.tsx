@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { Logo } from '@/components/marketing/nav';
+import { Logo } from '@/components/identity/logo';
 import { brand } from '@/lib/brand';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {

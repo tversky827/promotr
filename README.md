@@ -1,4 +1,4 @@
-# Promotr
+# Audicents
 
 A performance marketplace. Brands post campaigns that pay for results; creators
 and publishers take a tracking link in seconds and earn on the traffic,

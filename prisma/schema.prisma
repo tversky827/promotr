@@ -1,4 +1,4 @@
-// Promotr — performance creator marketplace
+// Audicents — performance creator marketplace
 // All monetary values are integer MICROS (1 unit = 1/1,000,000 of a currency unit).
 // $10.25 == 10_250_000 micros. See src/lib/money.ts and docs/DATABASE.md.
 

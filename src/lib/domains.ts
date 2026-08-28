@@ -13,10 +13,10 @@ import { logger } from '@/lib/observability/logger';
  * else's traffic, and it is the precondition for redirect allow-listing.
  */
 
-export const TXT_RECORD_PREFIX = 'promotr-domain-verification=';
+export const TXT_RECORD_PREFIX = 'audicents-domain-verification=';
 
 /** The DNS subdomain the TXT record is published at. */
-export const TXT_RECORD_HOST = '_promotr';
+export const TXT_RECORD_HOST = '_audicents';
 
 /**
  * The record a brand has to publish. Defined once so the settings screen, the

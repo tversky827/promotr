@@ -42,7 +42,7 @@ export function getStripe(operation = 'perform this operation'): Stripe {
       typescript: true,
       maxNetworkRetries: 2,
       timeout: 20_000,
-      appInfo: { name: 'Promotr', version: '1.0.0' },
+      appInfo: { name: 'Audicents', version: '1.0.0' },
     });
   }
   return client;

@@ -16,7 +16,7 @@ import { PrismaClient, type Campaign, type Creator, type PayoutModel } from '@pr
 const prisma = new PrismaClient();
 
 /** Every seeded account uses this domain, so seed data is trivially identifiable. */
-const SEED_DOMAIN = 'seed.promotr.test';
+const SEED_DOMAIN = 'seed.audicents.test';
 
 const SEED_MARKER = '[seed]';
 

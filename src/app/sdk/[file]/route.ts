@@ -20,7 +20,7 @@ export async function GET(
   { params }: { params: Promise<{ file: string }> },
 ): Promise<Response> {
   const { file } = await params;
-  if (file !== 'p.js' && file !== 'promotr.js') {
+  if (file !== 'a.js' && file !== 'audicents.js') {
     return new Response('Not found', { status: 404 });
   }
 
@@ -62,9 +62,9 @@ function sdkSource(origin: string): string {
 
   var ENDPOINT = ${JSON.stringify(appHost)};
   var TRACKING = ${JSON.stringify(trackingHost)};
-  var CLICK_PARAM = 'pmtr_click';
-  var STORAGE_KEY = 'pmtr_click_id';
-  var STORAGE_TS_KEY = 'pmtr_click_ts';
+  var CLICK_PARAM = 'adc_click';
+  var STORAGE_KEY = 'adc_click_id';
+  var STORAGE_TS_KEY = 'adc_click_ts';
   /* Default 30-day attribution window; the server enforces the real one. */
   var DEFAULT_TTL_DAYS = 30;
 
@@ -73,7 +73,7 @@ function sdkSource(origin: string): string {
 
   function log() {
     if (config.debug && window.console) {
-      window.console.log.apply(window.console, ['[promotr]'].concat([].slice.call(arguments)));
+      window.console.log.apply(window.console, ['[audicents]'].concat([].slice.call(arguments)));
     }
   }
 
@@ -160,9 +160,9 @@ function sdkSource(origin: string): string {
       (body.value ? '&v=' + encodeURIComponent(body.value) : '');
   }
 
-  var promotr = {
+  var audicents = {
     /**
-     * promotr.init({ key: 'pk_live_...', campaign: '<campaign-id>' })
+     * audicents.init({ key: 'pk_live_...', campaign: '<campaign-id>' })
      */
     init: function (options) {
       options = options || {};
@@ -176,13 +176,13 @@ function sdkSource(origin: string): string {
 
       var pending = queue.splice(0, queue.length);
       for (var i = 0; i < pending.length; i++) {
-        promotr.trackConversion(pending[i][0], pending[i][1]);
+        audicents.trackConversion(pending[i][0], pending[i][1]);
       }
-      return promotr;
+      return audicents;
     },
 
     /**
-     * promotr.trackConversion({ conversionId: 'order-1042', value: 129.99 })
+     * audicents.trackConversion({ conversionId: 'order-1042', value: 129.99 })
      *
      * conversionId must be stable for a given order: it is the de-duplication
      * key, so firing this twice for one order is safe and charges once.
@@ -242,12 +242,12 @@ function sdkSource(origin: string): string {
   capture();
 
   /* Replay calls made before the script finished loading. */
-  var existing = window.promotr;
-  window.promotr = promotr;
+  var existing = window.audicents;
+  window.audicents = audicents;
   if (existing && existing.q && existing.q.length) {
     for (var j = 0; j < existing.q.length; j++) {
       var call = existing.q[j];
-      if (promotr[call[0]]) promotr[call[0]].apply(promotr, [].slice.call(call, 1));
+      if (audicents[call[0]]) audicents[call[0]].apply(audicents, [].slice.call(call, 1));
     }
   }
 })(window, document);

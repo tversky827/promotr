@@ -1,4 +1,4 @@
-# Promotr — application image.
+# Audicents — application image.
 #
 # One image runs both processes: `npm start` serves the web application and
 # `npm run worker` runs background jobs. They are the same code and the same

@@ -18,7 +18,7 @@ export interface RenderedEmail {
   text: string;
 }
 
-const ACCENT = `hsl(${brand.primaryHsl})`;
+const ACCENT = `hsl(${brand.markHsl})`;
 
 function layout(params: {
   heading: string;

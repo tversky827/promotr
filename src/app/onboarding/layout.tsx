@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-import { Logo } from '@/components/marketing/nav';
+import { Logo } from '@/components/identity/logo';
 import { getSession } from '@/lib/auth/session';
 
 export default async function OnboardingLayout({ children }: { children: React.ReactNode }) {

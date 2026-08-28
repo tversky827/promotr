@@ -22,7 +22,7 @@ import { checkRateLimit } from '@/lib/ratelimit';
  *   Authorization: Bearer pk_live_...
  *   {
  *     "campaign_id": "…",
- *     "click_id": "…",          // the pmtr_click value from your landing page
+ *     "click_id": "…",          // the adc_click value from your landing page
  *     "conversion_id": "order-1042",
  *     "value": "129.99",         // optional; drives revenue-share payouts
  *     "currency": "usd",
@@ -40,7 +40,7 @@ export const dynamic = 'force-dynamic';
 
 const conversionSchema = z.object({
   campaign_id: z.string().uuid('campaign_id must be a campaign UUID'),
-  click_id: z.string().uuid('click_id must be the pmtr_click value').optional().nullable(),
+  click_id: z.string().uuid('click_id must be the adc_click value').optional().nullable(),
   conversion_id: z
     .string()
     .trim()

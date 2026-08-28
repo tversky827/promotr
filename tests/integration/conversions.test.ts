@@ -179,7 +179,7 @@ describe('conversions', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.code).toBe('NO_ATTRIBUTION');
-    expect(result.message).toMatch(/pmtr_click/);
+    expect(result.message).toMatch(/adc_click/);
   });
 
   it('refuses a conversion outside the attribution window', async () => {

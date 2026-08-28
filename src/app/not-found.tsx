@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import { ButtonLink } from '@/components/ui/button';
-import { Logo } from '@/components/marketing/nav';
+import { Logo } from '@/components/identity/logo';
 
 export default function NotFound() {
   return (

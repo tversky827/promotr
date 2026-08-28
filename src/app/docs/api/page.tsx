@@ -112,7 +112,7 @@ export default function ApiDocsPage() {
           params={[
             { name: 'campaign_id', type: 'uuid', required: true, description: 'The campaign the conversion belongs to. Must be on your account.' },
             { name: 'conversion_id', type: 'string', required: true, description: 'Your stable order identifier. The de-duplication key.' },
-            { name: 'click_id', type: 'uuid', description: 'The pmtr_click value from the landing page. Without it the conversion cannot be attributed.' },
+            { name: 'click_id', type: 'uuid', description: 'The adc_click value from the landing page. Without it the conversion cannot be attributed.' },
             { name: 'value', type: 'string | number', description: 'Order value as a decimal, e.g. "129.99". Drives revenue-share payouts.' },
             { name: 'currency', type: 'string', description: 'Three-letter code. Defaults to usd.' },
             { name: 'event_type', type: 'enum', description: 'CLICK, IMPRESSION, LEAD, SALE, or CUSTOM. Inferred from the campaign if omitted.' },
@@ -177,7 +177,7 @@ export default function ApiDocsPage() {
   const response = await fetch('${host}/api/v1/conversions', {
     method: 'POST',
     headers: {
-      'Authorization': \`Bearer \${process.env.PROMOTR_API_KEY}\`,
+      'Authorization': \`Bearer \${process.env.AUDICENTS_API_KEY}\`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),

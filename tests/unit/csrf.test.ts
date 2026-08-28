@@ -22,9 +22,9 @@ describe('origin check', () => {
     expect(
       checkOrigin(
         headers({
-          origin: 'https://promotr-abc123.vercel.app',
-          host: 'promotr-abc123.vercel.app',
-          'x-forwarded-host': 'promotr-abc123.vercel.app',
+          origin: 'https://audicents-abc123.vercel.app',
+          host: 'audicents-abc123.vercel.app',
+          'x-forwarded-host': 'audicents-abc123.vercel.app',
           'x-forwarded-proto': 'https',
         }),
       ),
@@ -36,8 +36,8 @@ describe('origin check', () => {
       checkOrigin(
         headers({
           origin: 'https://evil.example',
-          host: 'promotr-abc123.vercel.app',
-          'x-forwarded-host': 'promotr-abc123.vercel.app',
+          host: 'audicents-abc123.vercel.app',
+          'x-forwarded-host': 'audicents-abc123.vercel.app',
           'x-forwarded-proto': 'https',
         }),
       ),
@@ -45,11 +45,11 @@ describe('origin check', () => {
   });
 
   it('rejects an opaque origin', () => {
-    expect(checkOrigin(headers({ origin: 'null', host: 'promotr.example' }))).toBe(false);
+    expect(checkOrigin(headers({ origin: 'null', host: 'audicents.example' }))).toBe(false);
   });
 
   it('rejects a request carrying neither origin nor referer', () => {
-    expect(checkOrigin(headers({ host: 'promotr.example' }))).toBe(false);
+    expect(checkOrigin(headers({ host: 'audicents.example' }))).toBe(false);
   });
 
   it('falls back to the referer when there is no origin', () => {
@@ -79,8 +79,8 @@ describe('origin check', () => {
     const realVictimOrigin = checkOrigin(
       headers({
         origin: 'https://evil.example',
-        host: 'promotr.example',
-        'x-forwarded-host': 'promotr.example',
+        host: 'audicents.example',
+        'x-forwarded-host': 'audicents.example',
         'x-forwarded-proto': 'https',
       }),
     );

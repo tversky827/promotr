@@ -50,7 +50,7 @@ export const GET = withApiErrorHandling(async (request: Request) => {
   if (!limit.allowed) return apiRateLimited(limit);
 
   const campaignId = params.get('campaign_id') ?? params.get('cid');
-  const clickId = params.get('click_id') ?? params.get('pmtr_click') ?? params.get('clickid');
+  const clickId = params.get('click_id') ?? params.get('adc_click') ?? params.get('clickid');
   const conversionId =
     params.get('conversion_id') ?? params.get('order_id') ?? params.get('txid');
   const value = params.get('value') ?? params.get('amount') ?? params.get('revenue');

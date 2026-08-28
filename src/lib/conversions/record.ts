@@ -27,7 +27,7 @@ import type { BillableEvent, Conversion } from '@prisma/client';
 
 export interface ConversionInput {
   campaignId: string;
-  /** The click this conversion is attributed to, from the `pmtr_click` param. */
+  /** The click this conversion is attributed to, from the `adc_click` param. */
   clickId?: string | null;
   /** The brand's own order/lead identifier. Required — it is the dedupe key. */
   externalId: string;
@@ -110,7 +110,7 @@ export async function recordConversion(input: ConversionInput): Promise<Conversi
       ok: false,
       code: 'NO_ATTRIBUTION',
       message:
-        'This conversion could not be matched to a click. Include the pmtr_click value from the landing page URL.',
+        'This conversion could not be matched to a click. Include the adc_click value from the landing page URL.',
     };
   }
   if (attribution.expired) {
