@@ -9,6 +9,7 @@ import { Stat, StatGrid } from '@/components/ui/stat';
 import { TBody, TD, TH, THead, TR, Table, TableWrap } from '@/components/ui/table';
 import { balanceSummary } from '@/lib/billing/earnings';
 import { checkPayoutEligibility } from '@/lib/billing/payouts';
+import { presentationMode } from '@/lib/demo/presentation';
 import { currentCsrfToken } from '@/lib/auth/csrf';
 import { pageCreator } from '@/lib/auth/guards';
 import { prisma } from '@/lib/db';
@@ -41,6 +42,7 @@ export default async function CreatorEarningsPage({
   const params = await searchParams;
   const page = Math.max(1, Number(params.page ?? '1') || 1);
   const csrfToken = await currentCsrfToken();
+  const presenting = await presentationMode();
 
   const statusFilter = isEarningStatus(params.status) ? params.status : undefined;
 
@@ -95,7 +97,7 @@ export default async function CreatorEarningsPage({
       <PageHeader
         title="Earnings"
         description="Every billable event, with its status and how it was calculated."
-        action={<ExportButton kind="earnings" csrfToken={csrfToken} />}
+        action={presenting ? null : <ExportButton kind="earnings" csrfToken={csrfToken} />}
       />
 
       <StatGrid columns={4} className="mb-6">

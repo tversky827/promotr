@@ -6,7 +6,7 @@ import { brand } from '@/lib/brand';
  * robots.txt.
  *
  * Tracking links, the API, and every authenticated surface are excluded.
- * Indexing /go/ would be actively harmful: a crawler following tracking links
+ * Indexing /r/ would be actively harmful: a crawler following tracking links
  * generates clicks that publishers do not benefit from and that we then have to
  * screen out.
  */
@@ -17,6 +17,8 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: '*',
         allow: ['/', '/campaigns', '/legal/', '/docs/'],
         disallow: [
+          '/r/',
+          // The previous path, still served for links already in the wild.
           '/go/',
           '/px/',
           '/api/',

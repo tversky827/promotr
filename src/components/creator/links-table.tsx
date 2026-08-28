@@ -115,7 +115,7 @@ export async function LinksTable({
                   </TD>
 
                   <TD>
-                    <code className="font-mono text-xs text-fg-muted">/go/{link.code}</code>
+                    <code className="font-mono text-xs text-fg-muted">/r/{link.code.toLowerCase()}</code>
                     <div className="mt-0.5 flex flex-wrap gap-1.5">
                       {link.subId ? <Badge tone="primary">sub: {link.subId}</Badge> : null}
                       {link.label ? (

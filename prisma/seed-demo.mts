@@ -392,6 +392,30 @@ async function fundCampaigns(campaigns: Map<string, Campaign>): Promise<void> {
     });
   }
 
+  // A working balance the demo brand has not committed to anything yet, so a
+  // campaign created during the walkthrough can be funded from it. Without
+  // this the wizard would end on a campaign with no budget, which reads as a
+  // broken flow rather than as the deliberate limit it would be.
+  const northline = campaigns.get('northline-fall');
+  if (northline) {
+    const balance = 25_000n * MICROS;
+    await prisma.$transaction(async (tx) => {
+      await post(tx, {
+        kind: 'BRAND_DEPOSIT',
+        idempotencyKey: `demo:balance:${northline.brandId}`,
+        description: 'Demo account balance',
+        lines: [
+          { account: accounts.externalSettlement(), direction: 'DEBIT', amountMicros: balance },
+          {
+            account: accounts.brandDeposit(northline.brandId),
+            direction: 'CREDIT',
+            amountMicros: balance,
+          },
+        ],
+      });
+    });
+  }
+
   console.log('  Campaigns funded through the ledger');
 }
 
@@ -496,7 +520,7 @@ async function seedDemoCreatorHistory(
 
     const link = await prisma.trackingLink.create({
       data: {
-        code: trackingCode(),
+        code: await trackingCode(),
         campaignId: campaign.id,
         creatorId: creator.id,
         channel: (fixture.channels[0] ?? 'INSTAGRAM') as ChannelType,
@@ -506,7 +530,7 @@ async function seedDemoCreatorHistory(
       },
     });
 
-    const clickIds = await insertClicks({
+    const clicks = await insertClicks({
       linkId: link.id,
       campaignId: campaign.id,
       creatorId: creator.id,
@@ -523,7 +547,7 @@ async function seedDemoCreatorHistory(
       campaignId: campaign.id,
       creatorId: creator.id,
       linkId: link.id,
-      clickIds,
+      clickIds: clicks.all,
       count: row.conversions,
       revenueMicros: dollars(row.revenue),
       payoutMicros: fixture.model === 'CPC' ? 0n : netFor(fixture, 1, dollars(row.revenue) / BigInt(Math.max(row.conversions, 1))),
@@ -547,7 +571,7 @@ async function seedDemoCreatorHistory(
         feeMicros: breakdown.feeMicros,
         netMicros: breakdown.netMicros,
         idempotencyKey: `demo:earn:${row.campaign}:${i}`,
-        clickId: fixture.model === 'CPC' ? (clickIds[i] ?? null) : null,
+        clickId: fixture.model === 'CPC' ? (clicks.billable[i] ?? null) : null,
         conversionId: fixture.model === 'CPC' ? null : (conversionIds[i] ?? null),
       });
 
@@ -630,8 +654,8 @@ async function insertClicks(params: {
   billable: number;
   countries: string[];
   channel: string;
-}): Promise<string[]> {
-  if (params.count <= 0) return [];
+}): Promise<{ all: string[]; billable: string[] }> {
+  if (params.count <= 0) return { all: [], billable: [] };
 
   const rows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
     `
@@ -661,7 +685,12 @@ async function insertClicks(params: {
         WHEN g % 29 = 0 THEN 'DUPLICATE'::"ClickEligibility"
         ELSE 'ELIGIBLE'::"ClickEligibility"
       END,
-      g <= $11::int AND g % 53 <> 0 AND g % 29 <> 0,
+      -- Billable clicks are spread evenly through the window rather than
+      -- being the first N: earnings inherit the date of the click that
+      -- produced them, so bunching them at one end would draw an earnings
+      -- chart that is a single spike.
+      (g * $11::int) / $1::int > ((g - 1) * $11::int) / $1::int
+        AND g % 53 <> 0 AND g % 29 <> 0,
       md5('demo-fp-' || $3 || '-' || (g % GREATEST($1::int / 3, 1))),
       CASE WHEN g % 53 = 0 THEN 70 + (g % 25) ELSE g % 18 END
     FROM generate_series(1, $1::int) AS g
@@ -678,12 +707,21 @@ async function insertClicks(params: {
     DEVICES,
     BROWSERS,
     referrerFor(params.channel),
-    // Ask for more than needed: some of the first N fall out as duplicates or
-    // rejects, and the earnings below take whichever actually qualified.
-    Math.min(params.count, Math.ceil(params.billable * 1.15) + 8),
+    // Ask for more than needed: roughly one in twenty falls out as a duplicate
+    // or a reject, and the earnings below take whichever actually qualified.
+    Math.min(params.count, Math.ceil(params.billable * 1.12) + 12),
   );
 
-  return rows.map((r) => r.id);
+  // Billable clicks are read back separately, oldest first, so the earnings
+  // loop can attribute one earning to each and mark the most recent as still
+  // on hold. Which clicks came out billable depends on the screening above, so
+  // it has to be asked rather than assumed.
+  const billable = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+    `SELECT id FROM "clicks" WHERE "linkId" = $1::uuid AND billable ORDER BY "createdAt"`,
+    params.linkId,
+  );
+
+  return { all: rows.map((r) => r.id), billable: billable.map((r) => r.id) };
 }
 
 function referrerFor(channel: string): string {
@@ -866,6 +904,21 @@ async function seedMarketplaceHistory(campaigns: Map<string, Campaign>): Promise
     DEMO_BRAND_TARGETS.reach,
   );
 
+  // Display names, so a brand's top-publisher list reads as people rather than
+  // as row numbers.
+  await prisma.$executeRawUnsafe(
+    `
+    INSERT INTO "creator_profiles" (id, "creatorId", "displayName", categories, "audienceCountries", channels, "isPublic", "createdAt", "updatedAt")
+    SELECT gen_random_uuid(), c.id, u.name, ARRAY['fashion','lifestyle'], ARRAY['US','CA'],
+           ARRAY['INSTAGRAM']::"ChannelType"[], true, now(), now()
+    FROM "creators" c
+    JOIN "users" u ON u.id = c."userId"
+    WHERE c."isDemo" AND u.email <> $1
+      AND NOT EXISTS (SELECT 1 FROM "creator_profiles" p WHERE p."creatorId" = c.id)
+    `,
+    DEMO_CREATOR_EMAIL,
+  );
+
   const creatorIds = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
     `SELECT c.id FROM "creators" c
      JOIN "users" u ON u.id = c."userId"
@@ -935,7 +988,8 @@ async function seedCampaignCohort(params: {
     `
     INSERT INTO "tracking_links" (id, code, "campaignId", "creatorId", "termsVersion", "termsAcceptedAt", "clickCount", "createdAt", "updatedAt")
     SELECT gen_random_uuid(),
-           substr(md5(gen_random_uuid()::text), 1, 10),
+           -- Same alphabet the product generates in, for the same reason.
+           translate(upper(substr(md5(gen_random_uuid()::text), 1, 10)), 'ILOU', '1105'),
            $1::uuid, x.creator_id, 1, now() - interval '85 days', x.clicks::bigint, now() - interval '85 days', now()
     FROM unnest($2::uuid[], $3::int[]) AS x(creator_id, clicks)
     RETURNING id, "creatorId"
@@ -1064,6 +1118,48 @@ async function seedCampaignCohort(params: {
   );
 
   await postCohortLedger({ campaign, creatorIds, nets, grosses, fees });
+  await insertImpressions(campaign, creatorIds, linkByCreator, clickShares);
+}
+
+/**
+ * Views of the post, not visits to the landing page.
+ *
+ * A click is the tail of a much larger number of people who saw the placement,
+ * and the brand's funnel is unreadable without the top of it. Seeded at a fixed
+ * multiple of clicks so the click-through rate the dashboards derive is a
+ * consistent one rather than noise.
+ */
+const IMPRESSIONS_PER_CLICK = 2;
+
+async function insertImpressions(
+  campaign: Campaign,
+  creatorIds: string[],
+  linkByCreator: Map<string, string>,
+  clickShares: number[],
+): Promise<void> {
+  const views = clickShares.map((clicks) => clicks * IMPRESSIONS_PER_CLICK);
+  if (views.reduce((a, b) => a + b, 0) === 0) return;
+
+  await prisma.$executeRawUnsafe(
+    `
+    INSERT INTO "impressions" (id, "createdAt", "linkId", "campaignId", "creatorId", "ipHash", country, billable, "sessionFp", "fraudScore")
+    SELECT gen_random_uuid(),
+           now() - ((random() * $2::float) || ' days')::interval,
+           x.link_id, $1::uuid, x.creator_id,
+           md5('demo-view-' || x.link_id || '-' || g),
+           'US', false,
+           md5('demo-vfp-' || x.link_id || '-' || (g % GREATEST(x.views / 3, 1))),
+           0
+    FROM unnest($3::uuid[], $4::uuid[], $5::int[]) AS x(link_id, creator_id, views)
+    CROSS JOIN LATERAL generate_series(1, x.views) AS g
+    WHERE x.views > 0
+    `,
+    campaign.id,
+    HISTORY_DAYS,
+    creatorIds.map((id) => linkByCreator.get(id) ?? ''),
+    creatorIds,
+    views,
+  );
 }
 
 /**
@@ -1273,13 +1369,15 @@ async function hashPassword(password: string): Promise<string> {
   return hash(password);
 }
 
-function trackingCode(): string {
-  const alphabet = 'abcdefghijkmnopqrstuvwxyz23456789';
-  let code = '';
-  for (let i = 0; i < 10; i += 1) {
-    code += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return code;
+/**
+ * Codes come from the product's own generator rather than a local one: they are
+ * matched case-insensitively through a Crockford base32 normalisation, so a
+ * code invented here in another alphabet would store fine and then fail to
+ * resolve when someone clicked it.
+ */
+async function trackingCode(): Promise<string> {
+  const { generateTrackingCode } = await import('../src/lib/crypto/ids');
+  return generateTrackingCode();
 }
 
 function daysAgo(days: number): Date {

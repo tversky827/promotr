@@ -8,7 +8,14 @@ import { TBody, TD, TH, THead, TR, Table, TableWrap } from '@/components/ui/tabl
 import { pageBrand } from '@/lib/auth/guards';
 import { availableMicros } from '@/lib/billing/budget';
 import { prisma } from '@/lib/db';
-import { describePayout, formatDate, formatNumber, humanize, statusTone } from '@/lib/format';
+import {
+  describePayout,
+  formatCompact,
+  formatDate,
+  formatNumber,
+  humanize,
+  statusTone,
+} from '@/lib/format';
 import { formatMicros } from '@/lib/money';
 
 export const metadata: Metadata = { title: 'Campaigns' };
@@ -44,6 +51,13 @@ export default async function BrandCampaignsPage({
     _count: true,
   });
   const countMap = new Map(counts.map((row) => [row.status, row._count]));
+
+  /*
+   * Lifetime performance per campaign, from the rollups rather than the raw
+   * partitions. Read in one query for the whole page: a per-row lookup would
+   * be twenty-five round trips to render one table.
+   */
+  const performance = await campaignPerformance(campaigns.map((campaign) => campaign.id));
 
   return (
     <>
@@ -82,15 +96,23 @@ export default async function BrandCampaignsPage({
                 <TR>
                   <TH>Campaign</TH>
                   <TH>Status</TH>
-                  <TH align="right">Publishers</TH>
+                  <TH align="right">Creators</TH>
+                  <TH align="right">Impressions</TH>
+                  <TH align="right">Clicks</TH>
                   <TH align="right">Conversions</TH>
-                  <TH align="right">Budget left</TH>
-                  <TH align="right">Spent</TH>
+                  <TH align="right">Spend</TH>
+                  <TH align="right">Revenue</TH>
+                  <TH align="right">ROAS</TH>
                 </TR>
               </THead>
               <TBody>
                 {campaigns.map((campaign) => {
                   const remaining = campaign.budget ? availableMicros(campaign.budget) : 0n;
+                  const stats = performance.get(campaign.id) ?? EMPTY_PERFORMANCE;
+                  const roas =
+                    stats.grossMicros > 0n
+                      ? Number((stats.revenueMicros * 10_000n) / stats.grossMicros) / 10_000
+                      : null;
                   const needsFunding =
                     remaining <= 0n &&
                     (campaign.status === 'APPROVED' || campaign.status === 'ACTIVE');
@@ -120,13 +142,33 @@ export default async function BrandCampaignsPage({
                         {formatNumber(campaign._count.links)}
                       </TD>
                       <TD align="right" numeric>
-                        {formatNumber(campaign._count.conversions)}
+                        {stats.impressions > 0 ? formatCompact(stats.impressions) : '—'}
                       </TD>
                       <TD align="right" numeric>
-                        {formatMicros(remaining, { showSubCent: false })}
+                        {formatCompact(stats.clicks)}
                       </TD>
                       <TD align="right" numeric>
-                        {formatMicros(campaign.budget?.spentMicros ?? 0n, { showSubCent: false })}
+                        {formatNumber(stats.conversions)}
+                      </TD>
+                      <TD align="right" numeric>
+                        {formatMicros(stats.grossMicros, { showSubCent: false })}
+                        <div className="text-2xs text-fg-subtle">
+                          {formatMicros(remaining, { showSubCent: false })} left
+                        </div>
+                      </TD>
+                      <TD align="right" numeric>
+                        {stats.revenueMicros > 0n
+                          ? formatMicros(stats.revenueMicros, { showSubCent: false })
+                          : '—'}
+                      </TD>
+                      <TD align="right" numeric>
+                        {roas !== null ? (
+                          <span className={roas >= 1 ? 'font-medium text-primary' : 'text-fg'}>
+                            {roas.toFixed(2)}×
+                          </span>
+                        ) : (
+                          '—'
+                        )}
                       </TD>
                     </TR>
                   );
@@ -175,5 +217,60 @@ function Tab({
         <span className="ml-1.5 text-xs tabular-nums text-fg-subtle">{count}</span>
       ) : null}
     </Link>
+  );
+}
+
+interface CampaignPerformance {
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  grossMicros: bigint;
+  revenueMicros: bigint;
+}
+
+const EMPTY_PERFORMANCE: CampaignPerformance = {
+  impressions: 0,
+  clicks: 0,
+  conversions: 0,
+  grossMicros: 0n,
+  revenueMicros: 0n,
+};
+
+async function campaignPerformance(ids: string[]): Promise<Map<string, CampaignPerformance>> {
+  if (ids.length === 0) return new Map();
+
+  const rows = await prisma.$queryRaw<
+    Array<{
+      campaignId: string;
+      impressions: bigint;
+      clicks: bigint;
+      conversions: bigint;
+      gross: bigint;
+      revenue: bigint;
+    }>
+  >`
+    SELECT
+      "campaignId",
+      COALESCE(SUM(impressions), 0)::bigint     AS impressions,
+      COALESCE(SUM(clicks), 0)::bigint          AS clicks,
+      COALESCE(SUM(conversions), 0)::bigint     AS conversions,
+      COALESCE(SUM("grossMicros"), 0)::bigint   AS gross,
+      COALESCE(SUM("revenueMicros"), 0)::bigint AS revenue
+    FROM "stat_hourly"
+    WHERE "campaignId" = ANY(${ids}::uuid[])
+    GROUP BY "campaignId"
+  `;
+
+  return new Map(
+    rows.map((row) => [
+      row.campaignId,
+      {
+        impressions: Number(row.impressions),
+        clicks: Number(row.clicks),
+        conversions: Number(row.conversions),
+        grossMicros: BigInt(row.gross),
+        revenueMicros: BigInt(row.revenue),
+      },
+    ]),
   );
 }

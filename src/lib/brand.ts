@@ -42,6 +42,14 @@ export const brand = {
   ).replace(/\/$/, ''),
 } as const;
 
+/**
+ * A publisher's tracking link.
+ *
+ * Codes are stored and matched in upper-case Crockford base32, but they are
+ * shown lower-case: the link is read off a screen and typed by hand more often
+ * than it is clicked, and a shouted URL looks like an error message. Resolution
+ * normalises case, so both forms reach the same link.
+ */
 export function trackingLinkUrl(code: string): string {
-  return `${brand.trackingUrl}/go/${code}`;
+  return `${brand.trackingUrl}/r/${code.toLowerCase()}`;
 }

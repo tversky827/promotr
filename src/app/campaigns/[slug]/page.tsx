@@ -1,14 +1,22 @@
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import type { Metadata } from 'next';
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 
-import { GetLinkPanel } from '@/components/campaign/get-link';
-import { Badge, Card, CardHeader, DescriptionList, Field, Separator } from '@/components/ui/primitives';
-import { availableMicros } from '@/lib/billing/budget';
-import { currentCsrfToken } from '@/lib/auth/csrf';
-import { getSession } from '@/lib/auth/session';
-import { brand } from '@/lib/brand';
-import { prisma } from '@/lib/db';
+import { GetLinkPanel } from "@/components/campaign/get-link";
+import { BrandMark } from "@/components/identity/brand-mark";
+import {
+  Badge,
+  Card,
+  CardHeader,
+  DescriptionList,
+  Field,
+  Separator,
+} from "@/components/ui/primitives";
+import { availableMicros } from "@/lib/billing/budget";
+import { currentCsrfToken } from "@/lib/auth/csrf";
+import { getSession } from "@/lib/auth/session";
+import { brand } from "@/lib/brand";
+import { prisma } from "@/lib/db";
 import {
   channelLabel,
   countryName,
@@ -17,9 +25,10 @@ import {
   formatNumber,
   humanize,
   payoutModelLabel,
-} from '@/lib/format';
-import { campaignBySlug } from '@/lib/marketplace';
-import { formatMicros } from '@/lib/money';
+} from "@/lib/format";
+import { presentationMode } from "@/lib/demo/presentation";
+import { campaignBySlug, type CampaignDetail } from "@/lib/marketplace";
+import { formatMicros } from "@/lib/money";
 
 export const revalidate = 60;
 
@@ -31,34 +40,41 @@ export async function generateMetadata({
   const { slug } = await params;
   const campaign = await campaignBySlug(slug).catch(() => null);
 
-  if (!campaign) return { title: 'Campaign not found' };
+  if (!campaign) return { title: "Campaign not found" };
 
   // A campaign the brand marked private must not be indexed even though the
   // page itself is reachable by direct link.
-  const indexable = campaign.isPublic && campaign.status === 'ACTIVE';
+  const indexable = campaign.isPublic && campaign.status === "ACTIVE";
   const payout = describePayout(campaign);
 
   return {
     title: `${campaign.name} — ${payout}`,
     description: `${campaign.offerSummary} Earn ${payout} promoting ${campaign.name} from ${campaign.brand.displayName}.`,
     alternates: { canonical: `/campaigns/${campaign.slug}` },
-    robots: indexable ? { index: true, follow: true } : { index: false, follow: false },
+    robots: indexable
+      ? { index: true, follow: true }
+      : { index: false, follow: false },
     openGraph: {
       title: `${campaign.name} — ${payout}`,
       description: campaign.offerSummary,
       url: `${brand.appUrl}/campaigns/${campaign.slug}`,
-      type: 'website',
+      type: "website",
     },
   };
 }
 
-export default async function CampaignPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function CampaignPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
   const { slug } = await params;
   const campaign = await campaignBySlug(slug);
   if (!campaign) notFound();
 
   const session = await getSession();
   const csrfToken = await currentCsrfToken();
+  const presenting = await presentationMode();
 
   const creator = session
     ? await prisma.creator.findUnique({
@@ -70,7 +86,12 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
   const application =
     creator && campaign.requiresApproval
       ? await prisma.campaignApplication.findUnique({
-          where: { campaignId_creatorId: { campaignId: campaign.id, creatorId: creator.id } },
+          where: {
+            campaignId_creatorId: {
+              campaignId: campaign.id,
+              creatorId: creator.id,
+            },
+          },
           select: { status: true },
         })
       : null;
@@ -88,9 +109,13 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
       ? Number((remaining * 10_000n) / budget.fundedMicros) / 100
       : 0;
 
-  const allowedRules = campaign.rules.filter((rule) => rule.kind === 'ALLOWED');
-  const prohibitedRules = campaign.rules.filter((rule) => rule.kind === 'PROHIBITED');
-  const requirementRules = campaign.rules.filter((rule) => rule.kind === 'REQUIREMENT');
+  const allowedRules = campaign.rules.filter((rule) => rule.kind === "ALLOWED");
+  const prohibitedRules = campaign.rules.filter(
+    (rule) => rule.kind === "PROHIBITED",
+  );
+  const requirementRules = campaign.rules.filter(
+    (rule) => rule.kind === "REQUIREMENT",
+  );
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
@@ -111,10 +136,13 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
           <header>
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone="neutral">{humanize(campaign.category)}</Badge>
-              <Badge tone="neutral" title={payoutModelLabel(campaign.payoutModel)}>
+              <Badge
+                tone="neutral"
+                title={payoutModelLabel(campaign.payoutModel)}
+              >
                 {campaign.payoutModel}
               </Badge>
-              {campaign.status === 'ACTIVE' ? (
+              {campaign.status === "ACTIVE" ? (
                 <Badge tone="success" dot>
                   Active
                 </Badge>
@@ -128,16 +156,27 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
               )}
             </div>
 
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-fg text-balance">
-              {campaign.name}
-            </h1>
-
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-md text-fg-muted">
-              <span>by</span>
-              <span className="font-medium text-fg">{campaign.brand.displayName}</span>
-              {campaign.brand.verification === 'VERIFIED' ? (
-                <Badge tone="info">Verified</Badge>
-              ) : null}
+            <div className="mt-3 flex items-start gap-4">
+              <BrandMark
+                name={campaign.brand.displayName}
+                logoUrl={campaign.brand.logoUrl}
+                size="lg"
+                className="mt-1"
+              />
+              <div className="min-w-0">
+                <h1 className="text-3xl font-semibold tracking-tight text-fg text-balance">
+                  {campaign.name}
+                </h1>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-md text-fg-muted">
+                  <span>by</span>
+                  <span className="font-medium text-fg">
+                    {campaign.brand.displayName}
+                  </span>
+                  {campaign.brand.verification === "VERIFIED" ? (
+                    <Badge tone="info">Verified</Badge>
+                  ) : null}
+                </div>
+              </div>
             </div>
 
             <p className="mt-4 max-w-2xl text-md text-fg-muted text-pretty">
@@ -148,25 +187,34 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
           <Separator className="my-7" />
 
           <section aria-labelledby="payout-heading">
-            <h2 id="payout-heading" className="text-lg font-semibold tracking-tight text-fg">
+            <h2
+              id="payout-heading"
+              className="text-lg font-semibold tracking-tight text-fg"
+            >
               What you earn
             </h2>
 
             <div className="mt-4 rounded-lg border border-primary/25 bg-primary-soft/40 p-5">
               <div className="text-3xl font-semibold tabular-nums tracking-tight text-fg">
-                {campaign.payoutModel === 'REVSHARE'
+                {campaign.payoutModel === "REVSHARE"
                   ? `${(campaign.revshareBps / 100).toFixed(campaign.revshareBps % 100 === 0 ? 0 : 2)}%`
                   : formatMicros(campaign.payoutMicros)}
               </div>
-              <div className="mt-1 text-md text-fg-muted">{describePayout(campaign)}</div>
+              <div className="mt-1 text-md text-fg-muted">
+                {describePayout(campaign)}
+              </div>
               <p className="mt-3 text-sm text-fg-muted text-pretty">
-                This is what lands in your balance. The platform commission is charged to the brand
-                on top of it, not deducted from your payout.
+                This is what lands in your balance. The platform commission is
+                charged to the brand on top of it, not deducted from your
+                payout.
               </p>
             </div>
 
             <DescriptionList columns={3} className="mt-5">
-              <Field label="Attribution window" hint="How long after a click a conversion still counts">
+              <Field
+                label="Attribution window"
+                hint="How long after a click a conversion still counts"
+              >
                 {campaign.attributionWindowHours >= 24
                   ? `${Math.round(campaign.attributionWindowHours / 24)} days`
                   : `${campaign.attributionWindowHours} hours`}
@@ -190,7 +238,10 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
           <Separator className="my-7" />
 
           <section aria-labelledby="about-heading">
-            <h2 id="about-heading" className="text-lg font-semibold tracking-tight text-fg">
+            <h2
+              id="about-heading"
+              className="text-lg font-semibold tracking-tight text-fg"
+            >
               About this campaign
             </h2>
             <div className="mt-3 whitespace-pre-wrap text-md leading-relaxed text-fg-muted text-pretty">
@@ -199,7 +250,9 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
 
             {campaign.conversionRules ? (
               <div className="mt-5 rounded-md border border-border bg-surface-sunken/50 p-4">
-                <h3 className="text-sm font-semibold text-fg">What counts as a conversion</h3>
+                <h3 className="text-sm font-semibold text-fg">
+                  What counts as a conversion
+                </h3>
                 <p className="mt-1.5 whitespace-pre-wrap text-sm text-fg-muted text-pretty">
                   {campaign.conversionRules}
                 </p>
@@ -210,12 +263,15 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
           <Separator className="my-7" />
 
           <section aria-labelledby="rules-heading">
-            <h2 id="rules-heading" className="text-lg font-semibold tracking-tight text-fg">
+            <h2
+              id="rules-heading"
+              className="text-lg font-semibold tracking-tight text-fg"
+            >
               Traffic rules
             </h2>
             <p className="mt-1.5 text-sm text-fg-muted text-pretty">
-              Traffic outside these rules is not billable — you would not be paid for it, so it is
-              worth reading before you promote.
+              Traffic outside these rules is not billable — you would not be
+              paid for it, so it is worth reading before you promote.
             </p>
 
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
@@ -225,7 +281,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
                 items={
                   campaign.allowedChannels.length > 0
                     ? campaign.allowedChannels.map(channelLabel)
-                    : ['Any channel not listed as prohibited']
+                    : ["Any channel not listed as prohibited"]
                 }
                 extra={allowedRules.map((rule) => rule.label)}
               />
@@ -236,9 +292,9 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
                 items={[
                   ...campaign.prohibitedChannels.map(channelLabel),
                   ...prohibitedRules.map((rule) => rule.label),
-                  'Spam and unsolicited messaging',
-                  'Misleading or unsubstantiated claims',
-                  'Incentivised or bot-generated traffic',
+                  "Spam and unsolicited messaging",
+                  "Misleading or unsubstantiated claims",
+                  "Incentivised or bot-generated traffic",
                 ]}
               />
             </div>
@@ -258,16 +314,19 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
             <DescriptionList columns={2} className="mt-6">
               <Field label="Geographic availability">
                 {campaign.allowedCountries.length > 0
-                  ? campaign.allowedCountries.map(countryName).join(', ')
-                  : 'Worldwide'}
+                  ? campaign.allowedCountries.map(countryName).join(", ")
+                  : "Worldwide"}
                 {campaign.blockedCountries.length > 0 ? (
                   <span className="mt-1 block text-sm text-fg-muted">
-                    Excluding: {campaign.blockedCountries.map(countryName).join(', ')}
+                    Excluding:{" "}
+                    {campaign.blockedCountries.map(countryName).join(", ")}
                   </span>
                 ) : null}
               </Field>
               {campaign.minAge ? (
-                <Field label="Audience age restriction">{campaign.minAge}+ only</Field>
+                <Field label="Audience age restriction">
+                  {campaign.minAge}+ only
+                </Field>
               ) : null}
             </DescriptionList>
           </section>
@@ -276,7 +335,10 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
             <>
               <Separator className="my-7" />
               <section aria-labelledby="creatives-heading">
-                <h2 id="creatives-heading" className="text-lg font-semibold tracking-tight text-fg">
+                <h2
+                  id="creatives-heading"
+                  className="text-lg font-semibold tracking-tight text-fg"
+                >
                   Approved creative assets
                 </h2>
                 <p className="mt-1.5 text-sm text-fg-muted text-pretty">
@@ -285,16 +347,21 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
 
                 <div className="mt-4 space-y-3">
                   {campaign.creatives.map((creative) => (
-                    <div key={creative.id} className="rounded-md border border-border p-4">
+                    <div
+                      key={creative.id}
+                      className="rounded-md border border-border p-4"
+                    >
                       <div className="flex items-start justify-between gap-3">
-                        <h3 className="text-sm font-semibold text-fg">{creative.title}</h3>
+                        <h3 className="text-sm font-semibold text-fg">
+                          {creative.title}
+                        </h3>
                         <Badge
                           tone={
-                            creative.usage === 'REQUIRED'
-                              ? 'danger'
-                              : creative.usage === 'APPROVED'
-                                ? 'success'
-                                : 'neutral'
+                            creative.usage === "REQUIRED"
+                              ? "danger"
+                              : creative.usage === "APPROVED"
+                                ? "success"
+                                : "neutral"
                           }
                         >
                           {humanize(creative.usage)}
@@ -325,10 +392,15 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
           <Separator className="my-7" />
 
           <section aria-labelledby="terms-heading">
-            <h2 id="terms-heading" className="text-lg font-semibold tracking-tight text-fg">
+            <h2
+              id="terms-heading"
+              className="text-lg font-semibold tracking-tight text-fg"
+            >
               Campaign terms
             </h2>
-            <p className="mt-1 text-xs text-fg-subtle">Version {campaign.termsVersion}</p>
+            <p className="mt-1 text-xs text-fg-subtle">
+              Version {campaign.termsVersion}
+            </p>
             <div className="mt-3 whitespace-pre-wrap rounded-md border border-border bg-surface-sunken/50 p-4 text-sm leading-relaxed text-fg-muted">
               {campaign.termsBody}
             </div>
@@ -336,7 +408,10 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
         </div>
 
         {/* Sticky action rail */}
-        <div className="lg:sticky lg:top-20 lg:self-start">
+        <div
+          id="get-link"
+          className="scroll-mt-24 lg:sticky lg:top-20 lg:self-start"
+        >
           <div className="space-y-4">
             <GetLinkPanel
               campaignId={campaign.id}
@@ -351,7 +426,14 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
               signedIn={Boolean(session)}
               isCreator={Boolean(creator)}
               budgetExhausted={remaining <= 0n}
+              suggestedText={
+                campaign.creatives.find((creative) => creative.kind === "COPY")
+                  ?.body ?? campaign.offerSummary
+              }
+              presenting={presenting}
             />
+
+            <EstimatedEarnings campaign={campaign} />
 
             <Card>
               <CardHeader title="Campaign budget" />
@@ -366,15 +448,21 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
                   <div
                     className={
                       percentRemaining < 15
-                        ? 'h-full rounded-full bg-warning'
-                        : 'h-full rounded-full bg-success'
+                        ? "h-full rounded-full bg-warning"
+                        : "h-full rounded-full bg-success"
                     }
-                    style={{ width: `${Math.max(Math.min(percentRemaining, 100), 2)}%` }}
+                    style={{
+                      width: `${Math.max(Math.min(percentRemaining, 100), 2)}%`,
+                    }}
                   />
                 </div>
                 <p className="mt-2 text-xs text-fg-subtle">
-                  of {formatMicros(budget?.fundedMicros ?? 0n, { showSubCent: false })} funded.
-                  When the budget runs out, traffic still reaches the advertiser but stops earning.
+                  of{" "}
+                  {formatMicros(budget?.fundedMicros ?? 0n, {
+                    showSubCent: false,
+                  })}{" "}
+                  funded. When the budget runs out, traffic still reaches the
+                  advertiser but stops earning.
                 </p>
               </div>
             </Card>
@@ -386,14 +474,18 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
                   label="Qualified clicks"
                   value={formatNumber(campaign.stats.qualifiedClicks30d)}
                 />
-                <StatRow label="Conversions" value={formatNumber(campaign.stats.conversions30d)} />
+                <StatRow
+                  label="Conversions"
+                  value={formatNumber(campaign.stats.conversions30d)}
+                />
                 <StatRow
                   label="Active publishers"
                   value={formatNumber(campaign.stats.activePublishers)}
                 />
               </dl>
               <p className="mt-3 border-t border-border pt-3 text-2xs text-fg-subtle">
-                Aggregated across all publishers. Past performance does not predict your results.
+                Aggregated across all publishers. Past performance does not
+                predict your results.
               </p>
             </Card>
 
@@ -401,16 +493,28 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
               <CardHeader title="Advertiser" />
               <dl className="mt-4 space-y-3">
                 <StatRow label="Business" value={campaign.brand.displayName} />
-                <StatRow label="Category" value={humanize(campaign.brand.category)} />
+                <StatRow
+                  label="Category"
+                  value={humanize(campaign.brand.category)}
+                />
                 <StatRow
                   label="Verification"
                   value={
-                    <Badge tone={campaign.brand.verification === 'VERIFIED' ? 'success' : 'neutral'}>
+                    <Badge
+                      tone={
+                        campaign.brand.verification === "VERIFIED"
+                          ? "success"
+                          : "neutral"
+                      }
+                    >
                       {humanize(campaign.brand.verification)}
                     </Badge>
                   }
                 />
-                <StatRow label="On platform since" value={formatDate(campaign.brand.createdAt)} />
+                <StatRow
+                  label="On platform since"
+                  value={formatDate(campaign.brand.createdAt)}
+                />
               </dl>
             </Card>
 
@@ -419,7 +523,10 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
                 <CardHeader title="Campaign window" />
                 <dl className="mt-4 space-y-3">
                   {campaign.startsAt ? (
-                    <StatRow label="Starts" value={formatDate(campaign.startsAt)} />
+                    <StatRow
+                      label="Starts"
+                      value={formatDate(campaign.startsAt)}
+                    />
                   ) : null}
                   <StatRow label="Ends" value={formatDate(campaign.endsAt)} />
                 </dl>
@@ -434,16 +541,19 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'Offer',
+            "@context": "https://schema.org",
+            "@type": "Offer",
             name: campaign.name,
             description: campaign.offerSummary,
             category: campaign.category,
-            seller: { '@type': 'Organization', name: campaign.brand.displayName },
+            seller: {
+              "@type": "Organization",
+              name: campaign.brand.displayName,
+            },
             availability:
-              campaign.status === 'ACTIVE' && remaining > 0n
-                ? 'https://schema.org/InStock'
-                : 'https://schema.org/OutOfStock',
+              campaign.status === "ACTIVE" && remaining > 0n
+                ? "https://schema.org/InStock"
+                : "https://schema.org/OutOfStock",
             url: `${brand.appUrl}/campaigns/${campaign.slug}`,
           }),
         }}
@@ -468,15 +578,15 @@ function RuleList({
   extra = [],
 }: {
   title: string;
-  tone: 'success' | 'danger' | 'info';
+  tone: "success" | "danger" | "info";
   items: string[];
   extra?: string[];
 }) {
   const all = [...items, ...extra];
   const colors = {
-    success: 'text-success',
-    danger: 'text-danger',
-    info: 'text-info',
+    success: "text-success",
+    danger: "text-danger",
+    info: "text-info",
   };
 
   return (
@@ -484,9 +594,15 @@ function RuleList({
       <h3 className="text-sm font-semibold text-fg">{title}</h3>
       <ul className="mt-2.5 space-y-1.5">
         {all.map((item, index) => (
-          <li key={`${item}-${index}`} className="flex items-start gap-2 text-sm text-fg-muted">
-            <span className={`mt-0.5 shrink-0 ${colors[tone]}`} aria-hidden="true">
-              {tone === 'danger' ? '✕' : tone === 'info' ? '!' : '✓'}
+          <li
+            key={`${item}-${index}`}
+            className="flex items-start gap-2 text-sm text-fg-muted"
+          >
+            <span
+              className={`mt-0.5 shrink-0 ${colors[tone]}`}
+              aria-hidden="true"
+            >
+              {tone === "danger" ? "✕" : tone === "info" ? "!" : "✓"}
             </span>
             <span className="text-pretty">{item}</span>
           </li>
@@ -494,4 +610,82 @@ function RuleList({
       </ul>
     </div>
   );
+}
+
+/**
+ * What this campaign could be worth.
+ *
+ * Publishers think in "if I send a thousand people", not in unit prices, so the
+ * arithmetic is done for them. It is framed as a worked example with its
+ * assumptions on the label — a projection, not a promise — because nothing
+ * about traffic guarantees a result and saying otherwise would be a claim the
+ * platform cannot stand behind.
+ */
+function EstimatedEarnings({ campaign }: { campaign: CampaignDetail }) {
+  const example = earningsExample(campaign);
+  if (!example) return null;
+
+  return (
+    <Card>
+      <CardHeader title="What this could pay" />
+      <div className="mt-4">
+        <p className="text-2xl font-semibold tabular-nums tracking-tight text-fg">
+          {example.amount}
+        </p>
+        <p className="mt-1 text-sm text-fg-muted text-pretty">
+          {example.basis}
+        </p>
+        <p className="mt-3 border-t border-border pt-3 text-xs text-fg-subtle text-pretty">
+          A worked example on the campaign&apos;s own rate, not a forecast. What
+          you earn depends on your audience and on how much of your traffic
+          qualifies.
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+function earningsExample(
+  campaign: CampaignDetail,
+): { amount: string; basis: string } | null {
+  const CLICKS = 1_000n;
+
+  switch (campaign.payoutModel) {
+    case "CPC":
+      return {
+        amount: formatMicros(campaign.payoutMicros * CLICKS),
+        basis: "1,000 qualified clicks, at this campaign’s rate.",
+      };
+    case "CPM":
+      return {
+        amount: formatMicros(campaign.payoutMicros * 10n),
+        basis: "10,000 impressions, at this campaign’s rate.",
+      };
+    case "CPL":
+    case "CPA": {
+      // 2% is a deliberately conservative click-to-action rate, and it is
+      // stated rather than hidden so the number can be argued with.
+      const events = 20n;
+      return {
+        amount: formatMicros(campaign.payoutMicros * events),
+        basis: `1,000 clicks converting at 2% — ${events} ${
+          campaign.payoutModel === "CPL" ? "leads" : "sales"
+        } at ${formatMicros(campaign.payoutMicros)} each.`,
+      };
+    }
+    case "REVSHARE":
+    case "HYBRID": {
+      if (campaign.revshareBps <= 0) return null;
+      const order = 150n * 1_000_000n;
+      const perOrder = (order * BigInt(campaign.revshareBps)) / 10_000n;
+      return {
+        amount: formatMicros(perOrder * 10n),
+        basis: `Ten $150 orders at ${(campaign.revshareBps / 100).toFixed(
+          campaign.revshareBps % 100 === 0 ? 0 : 1,
+        )}% — ${formatMicros(perOrder)} each.`,
+      };
+    }
+    default:
+      return null;
+  }
 }

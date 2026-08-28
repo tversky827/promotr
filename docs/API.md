@@ -188,7 +188,7 @@ Events: `campaign.created`, `campaign.started`, `campaign.paused`,
 
 ## Tracking links
 
-A link looks like `https://your-domain/go/AbC123`. The redirect appends one
+A link looks like `https://your-domain/r/abc123`. The redirect appends one
 parameter to your destination:
 
 ```

@@ -40,8 +40,19 @@ export default async function BrandLayout({ children }: { children: React.ReactN
     },
   ];
 
-  // Configuration states are surfaced, never hidden behind a broken button.
-  const notice = !stripeConfigured() ? (
+  /*
+   * Configuration states are surfaced, never hidden behind a broken button.
+   * A demo account gets a different notice from a misconfigured one: it cannot
+   * reach a payment provider by design rather than by omission, and warning
+   * about a missing configuration would be describing the wrong problem.
+   */
+  const notice = brand.isDemo ? (
+    <Alert tone="info" title="This is a demo account">
+      Every figure here comes from the same tracking, budget and ledger code a live account uses,
+      and campaigns you create go into the real marketplace. What a demo account cannot do is move
+      real money: adding funds and paying publishers are the two rails it is barred from.
+    </Alert>
+  ) : !stripeConfigured() ? (
     <Alert tone="warning" title="Payments are not configured on this deployment">
       Campaigns cannot be funded until an administrator configures the payment provider. You can
       still build campaigns and submit them for review.

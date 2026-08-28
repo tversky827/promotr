@@ -94,7 +94,7 @@ describe('end-to-end over HTTP', () => {
   it('redirects a visitor and records the click', async () => {
     const { link, campaign, creator } = await seedLoop();
 
-    const response = await fetch(`${BASE}/go/${link.code}`, {
+    const response = await fetch(`${BASE}/r/${link.code}`, {
       redirect: 'manual',
       headers: { 'user-agent': CHROME, referer: 'https://www.youtube.com/watch?v=x' },
     });
@@ -126,7 +126,7 @@ describe('end-to-end over HTTP', () => {
     const { link, campaign, creator, apiKey } = await seedLoop();
 
     // 1. A visitor clicks the publisher's link.
-    const redirect = await fetch(`${BASE}/go/${link.code}`, {
+    const redirect = await fetch(`${BASE}/r/${link.code}`, {
       redirect: 'manual',
       headers: { 'user-agent': CHROME },
     });
@@ -163,7 +163,7 @@ describe('end-to-end over HTTP', () => {
   it('does not charge twice when the advertiser retries a conversion', async () => {
     const { link, campaign, creator, apiKey } = await seedLoop();
 
-    const redirect = await fetch(`${BASE}/go/${link.code}`, {
+    const redirect = await fetch(`${BASE}/r/${link.code}`, {
       redirect: 'manual',
       headers: { 'user-agent': CHROME },
     });
@@ -237,7 +237,7 @@ describe('end-to-end over HTTP', () => {
   it('accepts a server-to-server postback', async () => {
     const { link, campaign, apiKey, creator } = await seedLoop();
 
-    const redirect = await fetch(`${BASE}/go/${link.code}`, {
+    const redirect = await fetch(`${BASE}/r/${link.code}`, {
       redirect: 'manual',
       headers: { 'user-agent': CHROME },
     });
@@ -255,7 +255,7 @@ describe('end-to-end over HTTP', () => {
   it('always returns a valid image from the conversion pixel', async () => {
     const { link, campaign, apiKey } = await seedLoop();
 
-    const redirect = await fetch(`${BASE}/go/${link.code}`, {
+    const redirect = await fetch(`${BASE}/r/${link.code}`, {
       redirect: 'manual',
       headers: { 'user-agent': CHROME },
     });
@@ -291,7 +291,7 @@ describe('end-to-end over HTTP', () => {
   });
 
   it('sends visitors somewhere useful when a code does not resolve', async () => {
-    const response = await fetch(`${BASE}/go/ZZZZZZZZZZ`, { redirect: 'manual' });
+    const response = await fetch(`${BASE}/r/ZZZZZZZZZZ`, { redirect: 'manual' });
 
     expect(response.status).toBe(302);
     expect(response.headers.get('location')).toContain('/campaigns');

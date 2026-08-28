@@ -58,6 +58,7 @@ export interface MarketplaceCampaign {
   brandName: string;
   brandSlug: string;
   brandVerified: boolean;
+  brandLogoUrl: string | null;
   budgetRemainingMicros: bigint;
   budgetFundedMicros: bigint;
   budgetExhausted: boolean;
@@ -162,7 +163,7 @@ export async function searchCampaigns(
       c."requiresApproval", c."allowedCountries", c."allowedChannels"::text[] AS allowed_channels,
       c."prohibitedChannels"::text[] AS prohibited_channels,
       c."endsAt", c."launchedAt", c."createdAt", c."attributionWindowHours",
-      b."displayName" AS brand_name, b.slug AS brand_slug,
+      b."displayName" AS brand_name, b.slug AS brand_slug, b."logoUrl" AS brand_logo,
       (b.verification = 'VERIFIED') AS brand_verified,
       bd."fundedMicros", bd."reservedMicros", bd."spentMicros",
       COALESCE(t.recent_clicks, 0)::int AS recent_clicks,
@@ -242,6 +243,7 @@ function toCampaign(row: Record<string, unknown>): MarketplaceCampaign {
     brandName: String(row.brand_name),
     brandSlug: String(row.brand_slug),
     brandVerified: Boolean(row.brand_verified),
+    brandLogoUrl: (row.brand_logo as string | null) || null,
     budgetRemainingMicros: remaining,
     budgetFundedMicros: funded,
     budgetExhausted: remaining <= 0n,

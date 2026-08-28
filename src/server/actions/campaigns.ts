@@ -350,14 +350,6 @@ export const submitForReview = action(submitSchema, async (input, context) => {
     data: { status: 'PENDING_REVIEW' },
   });
 
-  // Moderation runs in the background so a slow URL-screening call cannot make
-  // the submit button hang.
-  await enqueue(
-    'campaign.moderate',
-    { campaignId: campaign.id },
-    { idempotencyKey: `moderate:${campaign.id}:${Date.now()}` },
-  );
-
   await recordAudit({
     actorUserId: user.id,
     actorIp: context.ip,
@@ -365,6 +357,39 @@ export const submitForReview = action(submitSchema, async (input, context) => {
     entityKind: 'campaign',
     entityId: campaign.id,
   });
+
+  /*
+   * A demo brand's campaign is decided here and now rather than on the job
+   * queue. It goes through exactly the same moderation — the same screening,
+   * the same flags, the same possibility of being held — but a walkthrough
+   * cannot wait on a background worker, and a campaign that sat at "pending"
+   * would look like a flow that does not finish. Nothing is skipped; only the
+   * waiting is.
+   */
+  if (brand.isDemo) {
+    const { moderateCampaign } = await import('@/lib/moderation');
+    const result = await moderateCampaign(campaign.id);
+
+    if (result?.decision === 'APPROVED') {
+      await prisma.campaign.update({
+        where: { id: campaign.id },
+        data: { status: 'ACTIVE', launchedAt: new Date() },
+      });
+      return actionOk(undefined, 'Campaign launched successfully.');
+    }
+    if (result?.decision === 'REJECTED') {
+      return actionOk(undefined, 'This campaign was not accepted by moderation.');
+    }
+    return actionOk(undefined, 'Submitted. This campaign was held for a human to review.');
+  }
+
+  // Moderation runs in the background so a slow URL-screening call cannot make
+  // the submit button hang.
+  await enqueue(
+    'campaign.moderate',
+    { campaignId: campaign.id },
+    { idempotencyKey: `moderate:${campaign.id}:${Date.now()}` },
+  );
 
   return actionOk(undefined, 'Submitted for review. We will email you when it is decided.');
 });

@@ -6,7 +6,7 @@ One Next.js application, one PostgreSQL database, one worker process.
 
 ```
                          ┌──────────────────────────────┐
-   visitor ──/go/:code──►│                              │
+   visitor ──/r/:code───►│                              │
                          │      Next.js application     │──► PostgreSQL
    brand ─────────────── │  (App Router, RSC, actions,  │      ▲
    publisher ─────────── │   route handlers)            │      │
@@ -44,7 +44,7 @@ call them directly.
 
 ## Request paths
 
-**The redirect** (`/go/:code`) is the hottest path and the most latency
+**The redirect** (`/r/:code`) is the hottest path and the most latency
 sensitive: a visitor is waiting. It resolves the link from a short-lived cache,
 issues the redirect immediately, and does everything else — fraud scoring,
 click recording, earning accrual — in an `after()` hook once the response is

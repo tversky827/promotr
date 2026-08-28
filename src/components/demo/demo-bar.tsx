@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/auth/session';
 import { DEMO_ROLES, type DemoRole } from '@/lib/demo/mode';
+import { presentationMode } from '@/lib/demo/presentation';
 
 import { DemoSwitcher } from './demo-bar-client';
 
@@ -13,7 +14,7 @@ import { DemoSwitcher } from './demo-bar-client';
  * screens should never be in doubt about whether the money on them is real.
  */
 export async function DemoBar() {
-  const session = await getSession();
+  const [session, presenting] = await Promise.all([getSession(), presentationMode()]);
   const active: DemoRole | null =
     session?.user.isDemo === true
       ? session.user.role === 'CREATOR'
@@ -28,7 +29,7 @@ export async function DemoBar() {
           <span className="size-1.5 rounded-full bg-accent" aria-hidden="true" />
           Demo
         </span>
-        <DemoSwitcher active={active} roles={[...DEMO_ROLES]} csrfToken={session?.csrfToken ?? ''} />
+        <DemoSwitcher active={active} roles={[...DEMO_ROLES]} presenting={presenting} />
       </div>
     </div>
   );
