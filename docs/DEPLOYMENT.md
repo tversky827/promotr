@@ -73,13 +73,24 @@ as `DATABASE_URL`. Neon's pooler runs PgBouncer in transaction mode, which does
 not keep prepared statements between statements; without that flag Prisma
 eventually fails with "prepared statement already exists" under concurrency.
 
-**2. Apply the schema from your machine.**
+**2. Apply the schema.** The host does it for you: `vercel-build` in
+`package.json` runs `prisma migrate deploy` before building, and Vercel prefers
+that script over `build`. Set the two database variables in step 3 and the first
+deployment creates the schema.
+
+Migrations then run on every deployment. They are idempotent, a failed one fails
+the build rather than shipping code against the wrong schema, and Prisma takes an
+advisory lock so two concurrent deployments cannot both apply. On a team with
+many parallel deployments, drop the script and run migrations as a deliberate
+step instead:
 
 ```bash
-DATABASE_URL="<pooled>" DIRECT_DATABASE_URL="<direct>" npx prisma migrate deploy
+DATABASE_URL="<direct>" DIRECT_DATABASE_URL="<direct>" npx prisma migrate deploy
 ```
 
-**3. Deploy the application.** Import the repository on Vercel and set:
+**3. Deploy the application.** Import the repository on Vercel. If the branch you
+want is not the repository's default, set it under **Settings → Git → Production
+Branch** before deploying. Then set:
 
 | Variable | Value |
 | --- | --- |
