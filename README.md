@@ -112,6 +112,9 @@ not configured rather than pretending to work. See
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Running it in production |
 | [LAUNCH.md](docs/LAUNCH.md) | What to do before taking real money |
 
+To put a working URL in front of people on free tiers, see
+[the free deployment section](docs/DEPLOYMENT.md#a-free-deployment-for-an-mvp).
+
 ## Stack
 
 Next.js 16 (App Router, server components, server actions) · React 19 ·

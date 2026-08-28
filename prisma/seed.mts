@@ -42,13 +42,51 @@ async function main(): Promise<void> {
   console.log(`  Publisher  ${creators[0]?.user.email}`);
   console.log('\nStart the worker in another terminal to see rollups and jobs run:');
   console.log('  npm run worker\n');
+
+  if (!targetsLocalDatabase()) {
+    console.log(
+      'This database is not on this machine. Those passwords are published in the\n' +
+        'repository — change the administrator password before you share the URL.\n',
+    );
+  }
 }
 
 /**
  * Refuses to seed anything that looks like a real deployment. Seeding over
  * production data would be unrecoverable, so the check is deliberately strict.
  */
+/**
+ * Is the target database on this machine?
+ *
+ * NODE_ENV says how *this process* is running, which says nothing about where
+ * the database is. Running the seed locally against a hosted database is one
+ * command away, and every account it creates shares one published password —
+ * so a hosted database gets its own gate.
+ */
+function targetsLocalDatabase(): boolean {
+  const url = process.env.DATABASE_URL ?? '';
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    // `db` and `postgres` are the service names Compose and Kubernetes use.
+    return ['localhost', '127.0.0.1', '::1', 'db', 'postgres'].includes(host);
+  } catch {
+    // A socket path or an unparseable URL is local by definition.
+    return url === '' || url.startsWith('postgres://:') || url.includes('/var/run/');
+  }
+}
+
 async function assertSafeToSeed(): Promise<void> {
+  if (!targetsLocalDatabase() && process.env.ALLOW_REMOTE_SEED !== 'yes') {
+    throw new Error(
+      `Refusing to seed ${new URL(process.env.DATABASE_URL ?? 'postgres://unknown').hostname}: it is not a local database.\n\n` +
+        'Every seeded account signs in with the same published password, including an ' +
+        'administrator. On anything reachable from the internet that is an open door.\n\n' +
+        'If this database is genuinely disposable — a preview deployment nobody else can ' +
+        'reach, or one you will drop afterwards — set ALLOW_REMOTE_SEED=yes. Then change ' +
+        'the administrator password before sharing the URL.',
+    );
+  }
+
   if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PRODUCTION_SEED !== 'yes') {
     throw new Error(
       'Refusing to seed with NODE_ENV=production. Seed data must never enter a production database. ' +

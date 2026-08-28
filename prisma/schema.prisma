@@ -9,6 +9,11 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Migrations need a direct connection: a pooler (PgBouncer, Neon's pooled
+  // endpoint, Supabase's) multiplexes sessions, and the advisory locks and
+  // DDL a migration takes require one session it keeps to itself. Falls back
+  // to DATABASE_URL when unset, which is the right answer for a plain server.
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ---------------------------------------------------------------------------

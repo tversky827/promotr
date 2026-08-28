@@ -1,0 +1,45 @@
+# Background jobs for a deployment with nowhere to run a worker.
+#
+# On a serverless host there is no long-lived process, so the queue is driven by
+# calling /api/cron/tick on a schedule. GitHub's scheduler is best-effort and
+# can run late under load — fine for rollups, retention and payout processing,
+# which are not second-sensitive. If you need tighter timing, run
+# `npm run worker` on any always-on box instead; it is the same code.
+#
+# Two repository secrets are required:
+#   APP_URL      https://your-deployment.example.com  (no trailing slash)
+#   CRON_SECRET  the same value the deployment has
+name: Background jobs
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+# A late run must not pile up behind the previous one.
+concurrency:
+  group: cron-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Drain the job queue
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${APP_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "APP_URL and CRON_SECRET repository secrets are not set." >&2
+            exit 1
+          fi
+
+          # --fail-with-body so a 4xx/5xx fails the run and still shows why.
+          curl --silent --show-error --fail-with-body --max-time 120 \
+            --request POST \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            "${APP_URL}/api/cron/tick"

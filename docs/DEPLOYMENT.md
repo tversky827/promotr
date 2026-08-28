@@ -48,6 +48,76 @@ Then, in order:
 
 ## Platforms
 
+### A free deployment, for an MVP
+
+Enough to put a working URL in front of people, on free tiers, with no card.
+Three parts: the application on a Next.js host, a hosted Postgres, and a
+scheduler standing in for the worker.
+
+The combination below is the one this codebase fits with no changes — Vercel for
+the app, Neon for the database, GitHub Actions for the schedule. Any equivalent
+works: Render or Railway for the app, Supabase or a small managed Postgres for
+the database, cron-job.org for the schedule.
+
+**1. Create the database.** On Neon, create a project and copy both connection
+strings: the pooled one and the direct one. You need both — see `directUrl` in
+`prisma/schema.prisma`.
+
+**2. Apply the schema from your machine.**
+
+```bash
+DATABASE_URL="<pooled>" DIRECT_DATABASE_URL="<direct>" npx prisma migrate deploy
+```
+
+**3. Deploy the application.** Import the repository on Vercel and set:
+
+| Variable | Value |
+| --- | --- |
+| `DATABASE_URL` | the pooled connection string |
+| `DIRECT_DATABASE_URL` | the direct connection string |
+| `APP_ENCRYPTION_KEY` | `openssl rand -base64 32` — a fresh one, not the Compose value |
+| `IP_HASH_SECRET` | `openssl rand -base64 32` — likewise |
+| `CRON_SECRET` | `openssl rand -hex 32` |
+| `NEXT_PUBLIC_APP_URL` | the deployment URL, no trailing slash |
+| `NEXT_PUBLIC_TRACKING_URL` | the same |
+
+The two `NEXT_PUBLIC_` values are compiled into the build, so set them once the
+host has told you the URL and then **redeploy** — restarting is not enough.
+
+**4. Schedule the background jobs.** There is no long-lived process on a
+serverless host, so nothing releases matured earnings, refreshes dashboards,
+processes payouts or creates next month's click partitions. Add the repository
+secrets `APP_URL` and `CRON_SECRET` and enable
+`.github/workflows/cron.yml`, which calls `/api/cron/tick` every ten minutes.
+Any scheduler that can make an authenticated HTTPS request does the same job.
+
+**5. Make yourself an administrator.** Sign up through the site, then:
+
+```sql
+UPDATE users SET role = 'ADMIN' WHERE email = 'you@example.com';
+```
+
+#### What is degraded on free tiers, and what to do about it
+
+| Missing | Effect | Fix when it matters |
+| --- | --- | --- |
+| Redis | Rate limits are per instance rather than per cluster | Upstash has a free tier |
+| Object storage | CSV exports are generated but held in memory, so the download usually 410s | Cloudflare R2 free tier |
+| Email provider | No verification, reset or payout emails; notifications still appear in-app | Resend free tier |
+| Stripe keys | No funding, no payouts — every money screen says so | Add test keys to exercise the flows |
+| A database that sleeps | The first request after an idle period is slow | Expected on free Postgres |
+
+#### Before you point anyone at that URL
+
+- **Do not seed it.** Every seeded account shares one password published in this
+  repository, including an administrator. The seed refuses to run against a
+  non-local database for that reason; if you override it for a throwaway
+  preview, change the administrator password before you share the link.
+- Check the host's terms. Free tiers are commonly limited to non-commercial use,
+  and taking real money on one is usually a breach — a working demo is fine, a
+  live marketplace is not.
+- Nothing here is a substitute for [LAUNCH.md](LAUNCH.md) before real money.
+
 ### Locally, with Compose
 
 `docker-compose.yml` in the repository root runs the whole stack — Postgres,

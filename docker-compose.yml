@@ -14,6 +14,8 @@
 x-app-env: &app-env
   NODE_ENV: production
   DATABASE_URL: postgresql://promotr:promotr@db:5432/promotr
+  # No pooler in front of this database, so migrations use the same connection.
+  DIRECT_DATABASE_URL: postgresql://promotr:promotr@db:5432/promotr
   NEXT_PUBLIC_APP_URL: http://localhost:3000
   NEXT_PUBLIC_TRACKING_URL: http://localhost:3000
   # Development-only keys. Generate real ones with `openssl rand -base64 32`.
