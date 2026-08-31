@@ -38,8 +38,23 @@ import {
   DEMO_PERFORMANCE,
   type DemoCampaignFixture,
 } from './demo-fixtures.mts';
+import { targetsLocalDatabase } from './local-database.mts';
 
-const prisma = new PrismaClient();
+/**
+ * The connection this seed writes over.
+ *
+ * A managed Postgres usually sits behind a transaction pooler, and the pooled
+ * connection string is the one the running app uses. This is a bulk load —
+ * long transactions, deferred constraints, hundreds of thousands of rows — so
+ * it takes the direct connection when one is configured, the same one
+ * migrations use. Falls back to DATABASE_URL when there is no separate direct
+ * URL, which is the normal case locally.
+ */
+const SEED_DATABASE_URL = process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL || '';
+
+const prisma = new PrismaClient(
+  SEED_DATABASE_URL ? { datasources: { db: { url: SEED_DATABASE_URL } } } : {},
+);
 
 const DEMO_DOMAIN = 'demo.audicents.test';
 const DEMO_PASSWORD = 'AudicentsDemo123!';
@@ -54,7 +69,28 @@ const HISTORY_DAYS = 90;
 
 const MICROS = 1_000_000n;
 
+/**
+ * Deploy-time mode.
+ *
+ * `--if-needed` makes this safe to run on every build: it loads the demo data
+ * when a demo deployment has none, does nothing when the data is already there,
+ * and — because a missing sample dataset is not a reason to take a site
+ * offline — never fails the build it runs inside.
+ */
+const IF_NEEDED =
+  process.argv.includes('--if-needed') || process.env.DEMO_SEED_IF_NEEDED === '1';
+
+function demoModeOn(): boolean {
+  const value = process.env.DEMO_MODE;
+  return value === 'true' || value === '1' || value === 'yes';
+}
+
 async function main(): Promise<void> {
+  if (IF_NEEDED && !demoModeOn()) {
+    console.log('DEMO_MODE is not on, so no demo data is loaded.');
+    return;
+  }
+
   console.log('\nAudicents demo data\n');
 
   checkFixtures();
@@ -199,6 +235,10 @@ function format(value: number | bigint): string {
 async function assertSafeToSeed(): Promise<void> {
   const existing = await prisma.user.count({ where: { isDemo: true } });
   if (existing > 0) {
+    if (IF_NEEDED) {
+      console.log(`  Demo data is already loaded (${existing} accounts). Nothing to do.`);
+      process.exit(0);
+    }
     console.error(
       `\nThis database already holds ${existing} demo account(s).\n\n` +
         'Demo history includes ledger entries, which are append-only and cannot be\n' +
@@ -208,9 +248,15 @@ async function assertSafeToSeed(): Promise<void> {
     process.exit(1);
   }
 
-  const url = process.env.DATABASE_URL ?? '';
-  const local = /(@|\/\/)(localhost|127\.0\.0\.1|\[::1\]|db|postgres)([:/])/.test(url);
-  if (!local && process.env.ALLOW_REMOTE_DEMO_SEED !== 'yes') {
+  /*
+   * Loading sample campaigns into a shared database would put them in front of
+   * real users, so a remote database needs a deliberate yes. DEMO_MODE is that
+   * yes: a deployment that has turned on the password-less role switcher has
+   * already declared it holds nothing real.
+   */
+  const optedIn = process.env.ALLOW_REMOTE_DEMO_SEED === 'yes' || (IF_NEEDED && demoModeOn());
+
+  if (!targetsLocalDatabase(SEED_DATABASE_URL) && !optedIn) {
     console.error(
       '\nDATABASE_URL does not look local. Loading demo data into a shared database\n' +
         'would put sample campaigns in front of real users.\n\n' +
@@ -1421,7 +1467,8 @@ function daysAgo(days: number): Date {
 main()
   .catch((error) => {
     console.error('\nDemo seed failed:', error);
-    process.exit(1);
+    // On a build, a failed sample dataset must not take the deployment with it.
+    process.exit(IF_NEEDED ? 0 : 1);
   })
   .finally(() => {
     void prisma.$disconnect();

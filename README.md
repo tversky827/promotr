@@ -101,7 +101,10 @@ not configured rather than pretending to work. See
 
 ## Demo mode
 
-Set `DEMO_MODE=true` and run `npm run db:seed:demo` to load the walkthrough: nine
+Set `DEMO_MODE=true` and deploy. The build loads the walkthrough itself
+(`vercel-build` runs the seed with `--if-needed`, which does nothing when the
+data is already there, nothing when `DEMO_MODE` is off, and never fails a build).
+Locally, run `npm run db:seed:demo` to load it: nine
 fictional brands, fourteen live campaigns, one demo publisher and one demo brand
 with three months of history behind them. A bar appears at the top of every page
 with a `CREATOR` / `BRAND` switch, controls that simulate traffic, and a

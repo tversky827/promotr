@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "prisma generate && next build",
-    "vercel-build": "prisma migrate deploy && prisma generate && next build",
+    "vercel-build": "prisma migrate deploy && prisma generate && npm run db:seed:demo:if-needed && next build",
     "start": "next start -p 3000",
     "worker": "node --env-file-if-exists=.env --experimental-transform-types --import ./scripts/ts-runtime.mjs scripts/worker.ts",
     "typecheck": "tsc --noEmit",
@@ -20,6 +20,7 @@
     "db:studio": "prisma studio",
     "db:seed": "node --env-file-if-exists=.env --experimental-transform-types --import ./scripts/ts-runtime.mjs prisma/seed.mts",
     "db:seed:demo": "node --env-file-if-exists=.env --experimental-transform-types --import ./scripts/ts-runtime.mjs prisma/seed-demo.mts",
+    "db:seed:demo:if-needed": "node --env-file-if-exists=.env --experimental-transform-types --import ./scripts/ts-runtime.mjs prisma/seed-demo.mts --if-needed",
     "db:reset": "prisma migrate reset --force",
     "verify": "npm run typecheck && npm run test && npm run build"
   },

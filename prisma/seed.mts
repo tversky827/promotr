@@ -13,6 +13,8 @@ import { randomUUID } from 'node:crypto';
 
 import { PrismaClient, type Campaign, type Creator, type PayoutModel } from '@prisma/client';
 
+import { targetsLocalDatabase } from './local-database.mts';
+
 const prisma = new PrismaClient();
 
 /** Every seeded account uses this domain, so seed data is trivially identifiable. */
@@ -63,18 +65,6 @@ async function main(): Promise<void> {
  * command away, and every account it creates shares one published password —
  * so a hosted database gets its own gate.
  */
-function targetsLocalDatabase(): boolean {
-  const url = process.env.DATABASE_URL ?? '';
-  try {
-    const host = new URL(url).hostname.toLowerCase();
-    // `db` and `postgres` are the service names Compose and Kubernetes use.
-    return ['localhost', '127.0.0.1', '::1', 'db', 'postgres'].includes(host);
-  } catch {
-    // A socket path or an unparseable URL is local by definition.
-    return url === '' || url.startsWith('postgres://:') || url.includes('/var/run/');
-  }
-}
-
 async function assertSafeToSeed(): Promise<void> {
   if (!targetsLocalDatabase() && process.env.ALLOW_REMOTE_SEED !== 'yes') {
     throw new Error(
