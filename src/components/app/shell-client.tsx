@@ -270,7 +270,7 @@ export function UserMenu({
 }
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
     setTheme(document.documentElement.classList.contains('dark') ? 'dark' : 'light');
@@ -300,7 +300,12 @@ export function ThemeToggle() {
           aria-pressed={theme === option}
           className={cn(
             'flex flex-1 items-center justify-center gap-1.5 rounded px-2 py-1.5 text-xs font-medium transition-colors',
-            theme === option ? 'bg-surface text-fg shadow-xs' : 'text-fg-muted hover:text-fg',
+            // On the light theme the raised surface is only six points lighter
+            // than the track behind it, which leaves neither option looking
+            // chosen. A border carries the selection at both ends of the ramp.
+            theme === option
+              ? 'border border-border-strong bg-surface text-fg shadow-xs'
+              : 'border border-transparent text-fg-muted hover:text-fg',
           )}
         >
           {option === 'light' ? (

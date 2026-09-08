@@ -67,22 +67,31 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f8f6f2' },
-    { media: '(prefers-color-scheme: dark)', color: '#0d1613' },
-  ],
+  // One value rather than a prefers-color-scheme pair: the page defaults to
+  // light for everyone, so tinting a dark-mode phone's chrome to match a theme
+  // it will not render would be the mismatch, not the fix.
+  themeColor: '#f8f6f2',
 };
 
 /**
- * Applies the stored theme before first paint. Dark is the default — the deep
- * forest ground is the brand — so only an explicit choice of light opts out.
+ * Applies the stored theme before first paint.
+ *
+ * Light is the default: warm paper with deep forest ink. The dark forest ground
+ * is the more striking of the two, but a marketplace is read for minutes at a
+ * time in daylight, and that is the condition to design the default for. Dark
+ * stays a click away in the sidebar.
+ *
+ * The OS preference is deliberately not consulted. Someone whose laptop is in
+ * dark mode would otherwise land on the dark theme, which is precisely what the
+ * default is choosing not to do; the in-app toggle is the way to ask for it.
+ *
  * Wrapped in try/catch because localStorage throws in private-browsing modes in
- * some browsers.
+ * some browsers — where the fallback is the light default, not an exception.
  */
 const THEME_SCRIPT = `
 try {
-  if (localStorage.getItem('theme') !== 'light') document.documentElement.classList.add('dark');
-} catch (e) { document.documentElement.classList.add('dark'); }
+  if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+} catch (e) {}
 `.trim();
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

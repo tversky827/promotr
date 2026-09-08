@@ -25,8 +25,9 @@
       'Liberation Mono', monospace;
 
     /*
-     * Light theme — warm paper. Cream and beige surfaces, deep forest ink,
-     * so the page reads as natural rather than as a grey SaaS console.
+     * Light theme — warm paper, and the default. Cream and beige surfaces with
+     * deep forest ink, so the page reads as natural rather than as a grey SaaS
+     * console.
      */
     --bg: 42 30% 96%;
     --surface: 40 44% 98.5%;
@@ -35,8 +36,16 @@
     --border: 40 17% 87%;
     --border-strong: 40 13% 75%;
     --fg: 156 30% 11%;
-    --fg-muted: 152 9% 37%;
-    --fg-subtle: 150 8% 51%;
+    /*
+     * The secondary and tertiary steps are darker than a dark theme's
+     * equivalents need to be. Light grey on warm paper is the classic way a
+     * palette fails WCAG without looking wrong: --fg-subtle at 51% cleared only
+     * 3.08:1 against a sunken surface, and it carries table headers and hints —
+     * real content at 12px. Both are set so the weakest pairing on any ground
+     * clears 4.5:1, with enough gap left between them to still read as a ramp.
+     */
+    --fg-muted: 152 10% 31%;
+    --fg-subtle: 150 9% 40%;
     --shadow: 152 35% 14%;
 
     /* Deep forest green carries every primary action. */
@@ -59,8 +68,9 @@
   }
 
   /*
-   * Dark theme — the default. A deep forest ground with cream type: the
-   * "dark earth" identity at full strength.
+   * Dark theme. A deep forest ground with cream type: the "dark earth" identity
+   * at full strength. Reached through the toggle in the sidebar; the light
+   * theme above is what a visitor gets first.
    */
   .dark {
     --bg: 156 26% 7%;
